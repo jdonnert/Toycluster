@@ -42,11 +42,11 @@ FFTW_LIBS	=
 FFTW_INCL 	=
 endif
 
-ifeq ($(SYSTYPE),getorin.ira.inaf.it)
+ifeq ($(SYSTYPE),coma.msi.umn.edu)
 CC      	= icc
-OPTIMIZE	= -O2 -Wall -g -xhost
-GSL_INCL 	= -I/homes/donnert/Libs/include
-GSL_LIBS	= -L/homes/donnert/Libs/lib
+OPTIMIZE	= -O2 -Wall -g -xhost 
+GSL_INCL 	= 
+GSL_LIBS	= 
 FFTW_LIBS 	= 
 FFTW_INCL 	=
 endif

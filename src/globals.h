@@ -75,7 +75,7 @@ struct OpenMP_infos{
     int ThreadID;          // Thread ID of this thread 
 	unsigned short Seed[3]; // random number seed: erand48(Omp.Seed)
 } Omp;
-#pragma omp threadprivate(Omp)
+//#pragma omp threadprivate(Omp)
 
 extern struct Parameters{
     char Output_File[CHARBUFSIZE];

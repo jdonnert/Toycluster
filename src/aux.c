@@ -1,5 +1,3 @@
-#ifndef ALLVARS_H
-
 #include "globals.h"
 
 struct Parameters Param;
@@ -11,8 +9,8 @@ struct Universe Cosmo;
 
 struct SubhaloData Sub = { 2 , 0 }; // set Sub.First
 
+#pragma omp threadprivate(Omp)
 struct OpenMP_infos Omp = {0,0};
-//#pragma omp threadprivate(Omp)
 
 /* Memory Management */
 void *Malloc_info(const char* func, const char* file, const int line, 
@@ -77,5 +75,3 @@ void Assert_Info(const char *func, const char *file, int line,
 
     return;
 }
-
-#endif

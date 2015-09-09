@@ -1,5 +1,4 @@
-//#ifndef GLOBALS_H
-
+#ifndef GLOBALS_H
 #define GLOBALS_H
 
 #define PROG_NAME "Toycluster_IC"
@@ -70,12 +69,12 @@
 #define mean_mol_weight (1.0+4.0*yHelium)/(1.0+3.0*yHelium+1.0)
 #define adiabatic_index (5./3.)
 
-struct OpenMP_infos{
+extern struct OpenMP_infos{
     int NThreads;          // Number of openMP threads 
     int ThreadID;          // Thread ID of this thread 
 	unsigned short Seed[3]; // random number seed: erand48(Omp.Seed)
 } Omp;
-//#pragma omp threadprivate(Omp)
+#pragma omp threadprivate(Omp)
 
 extern struct Parameters{
     char Output_File[CHARBUFSIZE];
@@ -169,6 +168,4 @@ extern struct Units{
     double Energy;
 } Unit;
 
-
-
-//#endif
+#endif

@@ -10,7 +10,7 @@ struct Universe Cosmo;
 struct SubhaloData Sub = { 2 , 0 }; // set Sub.First
 
 #pragma omp threadprivate(Omp)
-struct OpenMP_infos Omp = {0,0};
+struct OpenMP_infos Omp = { 0 };
 
 /* Memory Management */
 void *Malloc_info(const char* func, const char* file, const int line, 
@@ -32,7 +32,7 @@ void *Realloc_info(const char* func, const char* file, const int line,
 	Assert_Info(file, func, line, result != NULL || size==0,  
 			"Reallocation failed: %zu bytes \n" ,size);
 
-	return (result);
+	return result;
 }
 
 void Free_info(const char* func, const char* file, const int line, void *ptr) 
@@ -43,7 +43,7 @@ void Free_info(const char* func, const char* file, const int line, void *ptr)
         fprintf(stderr, "\nWARNING ! Tried to free a NULL pointer at "
                 "file %s, function %s : line %d \n", 
 				file, func, line);
-    return;
+    return ;
 }
 
 /* Error Handling, we use variable arguments to be able

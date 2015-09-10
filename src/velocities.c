@@ -4,6 +4,7 @@
 
 #define NTABLE 512
 #define NSAMPLE (NTABLE*4) // oversample integrand
+#define RMIN 0.1 // smallest radius for which we have f(E)
 
 static void calc_distribution_function_table(int);
 static double distribution_function(const double);
@@ -55,20 +56,20 @@ void Make_velocities()
 
 		#pragma omp parallel for schedule(dynamic)  
         for (size_t ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM
-               
-            double dx = Halo[i].DM[ipart].Pos[0] - dCoM[0] - boxhalf;
+
+			double dx = Halo[i].DM[ipart].Pos[0] - dCoM[0] - boxhalf;
             double dy = Halo[i].DM[ipart].Pos[1] - dCoM[1] - boxhalf;
             double dz = Halo[i].DM[ipart].Pos[2] - dCoM[2] - boxhalf;
 
-            double r = sqrt(dx*dx + dy*dy + dz*dz); 
-			
+            double r = fmax(RMIN, sqrt(dx*dx + dy*dy + dz*dz)); 
+
 			double pot = -potential_profile(i, r); // rejection sampling
             double vmax = sqrt(-2*pot);
             double emax = pot;
 			double qmax = 4*pi * p2(vmax)/M * distribution_function(-emax);
 
             double v = 0;
-
+			
             for (;;) { // Ascasibar+ 2005, Press+ 1992
 
                 double lower_bound = qmax * erand48(Omp.Seed);
@@ -76,7 +77,7 @@ void Make_velocities()
                 v = vmax * erand48(Omp.Seed);
 
                 double Etot = 0.5 * v*v + pot;  
-
+				
 				double q = 4*pi * p2(v)/M * distribution_function(-Etot);
 
 				if (q >= lower_bound)
@@ -88,6 +89,7 @@ void Make_velocities()
         
             Halo[i].DM[ipart].Vel[0] = (float) (v * sin(theta) * cos(phi));
             Halo[i].DM[ipart].Vel[1] = (float) (v * sin(theta) * sin(phi));
+
             Halo[i].DM[ipart].Vel[2] = (float) (v * cos(theta));
         } // for ipart
 
@@ -167,17 +169,17 @@ static double distribution_function(const double E)
  * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 */  
 static void calc_distribution_function_table(int iCluster)
 {
-	const double rmax = 1e10; // large val for accuracy
-	const double sqrt8 = sqrt(8);
+	const double rmin = RMIN; // zero wont work 
+	const double rmax = 1e10 * Param.Boxsize; // large val for accuracy
 
-	double rstep = log10(rmax) / NSAMPLE; // good up to one Gpc
+	double rstep = log10(1e5 * rmax) / NSAMPLE; // good up to one Gpc
 
 	double psi[NSAMPLE] = { 0 }, rho[NSAMPLE] = { 0 };
 
 	#pragma omp parallel for  
 	for (int i = 0; i < NSAMPLE; i++) {
 		
-		double r = pow(10, (i)*rstep);
+		double r = rmin * pow(10, (i)*rstep) - 0.999;
 
 		rho[i] = dm_density_profile(iCluster, r);
 
@@ -200,6 +202,7 @@ static void calc_distribution_function_table(int iCluster)
 
 	#pragma omp parallel // make f(E) table
 	{
+
 	gsl_integration_workspace *w = gsl_integration_workspace_alloc(NSAMPLE);
 
 	interpolation_parameters int_params; 
@@ -208,12 +211,14 @@ static void calc_distribution_function_table(int iCluster)
 
 	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
 
-	rstep = log10(1e7) / NTABLE; // only consider 10 Mpc radius
+	rstep = log10(rmax/rmin) / NTABLE; // only consider 10 Mpc radius
+	
+	const double sqrt8 = sqrt(8);
 
 	#pragma omp for
 	for (int i = 0; i < NTABLE; i++) {
 
-		double r = pow(10, i*rstep);
+		double r = rmin * pow(10, i*rstep);
 
 		int_params.E = E[i] = potential_profile(iCluster, r);
 
@@ -225,8 +230,8 @@ static void calc_distribution_function_table(int iCluster)
 
 		fE[i] /= sqrt8 * pi * pi;
 	
-		//printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i], 
-		//		hernquist_distribution_func(iCluster, E[i]), error/fE[i]);
+	//	printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i], 
+	//			hernquist_distribution_func(iCluster, E[i]), error/fE[i]);
 	}
 
 	gsl_integration_workspace_free(w);
@@ -252,15 +257,16 @@ static void calc_distribution_function_table(int iCluster)
 	
 	/*for (int i = 0; i < 2*NTABLE; i++) {
 		
-		double r = pow(10, i*rstep/2);
+		double r = rmin * pow(10, i*rstep/2.01);
 
-		double E = potential_profile(iCluster, r), error = 0;
+		double E = potential_profile(iCluster, r);
+
+		printf("%d %g %g ", i, r, E);
 
 		double solution =  hernquist_distribution_func(iCluster, E);
 		double fe = distribution_function(E);
 
-		printf("%d %g %g %g %g %g \n", i, pow(10, i*rstep), E, solution, fe, 
-				fabs(fe-solution)/solution);
+		printf("%g %g %g \n", solution, fe, fabs(fe-solution)/solution);
 	}*/
 
 	return ;
@@ -271,6 +277,9 @@ static void calc_distribution_function_table(int iCluster)
 static double eddington_integrant(double psi, void *params)
 {
 	const interpolation_parameters *p = params;
+
+	if (psi == p->E)
+		return 0;
 
 	const double dRhodPsi2 = gsl_spline_eval_deriv2(p->spline, psi, p->acc);
 	

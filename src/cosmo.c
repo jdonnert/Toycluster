@@ -11,7 +11,7 @@ void Set_cosmology()
 	Cosmo.h_100 = 0.7; // model parameters at z = 0
 	Cosmo.Omega_M = 0.3; 
 	Cosmo.Omega_L = 0.7;
-	Cosmo.Baryon_Fraction = 0.17;
+	Cosmo.Baryon_Fraction = 0; //.17;
 
 	Cosmo.Omega_0 = Cosmo.Omega_M + Cosmo.Omega_L;
 	Cosmo.K = curvature_parameter( Cosmo.Omega_0 );

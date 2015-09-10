@@ -42,9 +42,9 @@ FFTW_LIBS	=
 FFTW_INCL 	=
 endif
 
-ifeq ($(SYSTYPE),coma.msi.umn.edu)
+ifeq ($(SYSTYPE),MSI)
 CC      	= icc
-OPTIMIZE	= -O2 -Wall -g -xhost 
+OPTIMIZE	= -O3 -Wall -g -xhost -ipo 
 GSL_INCL 	= 
 GSL_LIBS	= 
 FFTW_LIBS 	= 

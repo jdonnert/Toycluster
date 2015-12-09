@@ -1,10 +1,10 @@
 # Toycluster
 Idealized Cluster Mergers for Gadget (Donnert 2014)
 
+	+ Physical model from Donnert 2014
 	+ Simple OpenMP Tree for neighbour finding with WC6
 	+ DM distribution function using numerical solution of Eddingtons eq.
 	+ SPH density sampling & relaxation with Voronoi Tesselations (Diehl+)
-	+ Physical model from Donnert 2014
 	+ Magnetic fields from vector potential, Model from Bonafede+ 2010
 	+ Merger using Comet like or parabular shapes
 	+ Velocities parametrized using zero-energy orbit
@@ -13,4 +13,4 @@ Idealized Cluster Mergers for Gadget (Donnert 2014)
 	
 Known Issues: 
 	+ Magnetic field normalisation resolution dependent, due to low accuracy
-		SPH rotation operator
+		SPH rotation operator. DivB=0 constraint pretty bad.

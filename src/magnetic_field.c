@@ -96,7 +96,7 @@ static void normalise_magnetic_field()
 
 		double max_bfld = sqrt(max_B2);
 
-    	double norm = 2*Param.Bfld_Norm/max_bfld;
+    	double norm = 1.3*Param.Bfld_Norm/max_bfld;
 
 		if (Param.Cuspy != 0)
 			norm *= 6;

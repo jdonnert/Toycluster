@@ -226,7 +226,7 @@ void Setup()
     /* kinematics */
     if (Xm) { // two clusters only
 
-        d_clusters = Halo[0].R200 + Halo[1].R200;
+        d_clusters = 1.3 * (Halo[0].R200 + Halo[1].R200);
     
         Halo[0].D_CoM[0] = -1 * Halo[1].Mtotal200
             *d_clusters/Param.Mtot200;

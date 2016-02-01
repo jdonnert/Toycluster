@@ -6,6 +6,8 @@ OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
 #OPT     += -DPARABOLA       # merge in a parabula
 OPT		+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
+OPT 	+= -DZERO_ENERGY_ORBIT_FRACTION 0.8 # fraction of zero energy orbit in vel 
+
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
 #OPT	+= -DSUBSTRUCTURE	# add substructure
@@ -27,7 +29,7 @@ GSL_INCL = $(CPPFLAGS)
 GSL_LIBS = $(LDFLAGS)
 
 ifeq ($(SYSTYPE),DARWIN)
-CC      	=  gcc
+CC      	=  icc
 OPTIMIZE	= -O3 -m64 -fopenmp -mtune=native 
 GSL_INCL 	= $(CPPFLAGS)
 GSL_LIBS	= -L/Users/julius/Devel/lib

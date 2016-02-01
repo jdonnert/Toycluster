@@ -89,8 +89,8 @@ void Make_velocities()
         
             Halo[i].DM[ipart].Vel[0] = (float) (v * sin(theta) * cos(phi));
             Halo[i].DM[ipart].Vel[1] = (float) (v * sin(theta) * sin(phi));
-
             Halo[i].DM[ipart].Vel[2] = (float) (v * cos(theta));
+
         } // for ipart
 
 #if defined(SUBSTRUCTURE) && defined(SLOW_SUBSTRUCTURE)
@@ -159,14 +159,17 @@ static double distribution_function(const double E)
 	return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
 }
 
-/* Find f(E) for arbitrary spherically symmetric density-potential pairs by 
+/* 
+ * Find f(E) for arbitrary spherically symmetric density-potential pairs by 
  * numerical integration of the Eddington equation.
  * We interpolate rho(psi) with an cubic spline using the GSL library and
  * get the second derivative from the spline directly. This is a hard 1D 
  * integral to get to floating point precision ! We disable the GSL error
  * handler, because target accuracy can't always be reached. The Hernquist
  * f(E) is reproduce with a few 1e-3 accuracy ...
- * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 */  
+ * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 
+ */  
+
 static void calc_distribution_function_table(int iCluster)
 {
 	const double rmin = RMIN; // zero wont work 
@@ -272,8 +275,11 @@ static void calc_distribution_function_table(int iCluster)
 	return ;
 }
 
-/* Binney & Tremaine sect. 4.3.1, we take the second derivate from the
- * cubic spline directly */
+/* 
+ * Binney & Tremaine sect. 4.3.1, we take the second derivate from the
+ * cubic spline directly 
+ */
+
 static double eddington_integrant(double psi, void *params)
 {
 	const interpolation_parameters *p = params;
@@ -286,7 +292,10 @@ static double eddington_integrant(double psi, void *params)
 	return dRhodPsi2 / sqrt(p->E - psi);
 }
 
-/* Hernquist 1989, eq. 2 */
+/* 
+ * Hernquist 1989, eq. 2 
+ */
+
 static double dm_density_profile(const int i, const float r)
 {
     const double a = Halo[i].A_hernq;
@@ -309,7 +318,10 @@ static double potential_profile(const int i, const float r)
 	return psi; 
 }
 
-/* For testing. Hernquist 1989, eq. 17-19  */
+/* 
+ * For testing. Hernquist 1989, eq. 17-19  
+ */
+
 static double hernquist_distribution_func(const int iCluster, const double E) 
 {
 	const double a = Halo[iCluster].A_hernq;
@@ -324,7 +336,10 @@ static double hernquist_distribution_func(const int iCluster, const double E)
 	return f_E;
 }
 
-/* This is Psi = -Phi, i.e. Psi(r<inf) >= 0 */
+/* 
+ * This is Psi = -Phi, i.e. Psi(r<inf) >= 0 
+ */
+
 double dm_potential_profile(const int i, const float r)
 {
     const double a = Halo[i].A_hernq;

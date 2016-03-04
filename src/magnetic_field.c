@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "tree.h"
 
+#define BMAX 15e-6
 #define KLOWCUT (2*pi / Param.Boxsize * 32)
 #define KHIGHCUT (2*pi / 100)
 #define SPECTRAL_INDEX (-11.0/3.0)
@@ -33,36 +34,35 @@ static void set_magnetic_vector_potential()
 {
 	const float boxhalf = 0.5 * Param.Boxsize;
 
-	for (int i = 0; i < Param.Nhalos; i++) {
-
-		double rho0 =  Halo[i].Rho0;
-
-		if (rho0 == 0)
-			continue;
-			
 		#pragma omp parallel for 
     	for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
 		
-			float x = P[ipart].Pos[0] - boxhalf,
-				  y = P[ipart].Pos[1] - boxhalf,
-				  z = P[ipart].Pos[2] - boxhalf;
+			double A_max = 0;
 
-			int j = Halo_containing(0, x, y, z);
+			for (int i = 0; i < Param.Nhalos; i++) {
 
-			if (j != i)
+			if (Halo[i].Mass[0] == 0) // DM only halos
 				continue;
 
-			double rho_local = SphP[ipart].Rho;
+			float dx = P[ipart].Pos[0] - Halo[i].D_CoM[0] - boxhalf,
+				  dy = P[ipart].Pos[1] - Halo[i].D_CoM[1] - boxhalf,
+				  dz = P[ipart].Pos[2] - Halo[i].D_CoM[2] - boxhalf;
 
-			double rho_norm =  rho_local / rho0;
+			double r2 = dx*dx + dy*dy + dz*dz;
+
+			double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0, 
+									Halo[i].Rcore, Halo[i].Rcut);
+
+			double A = pow(rho_i/Halo[i].Rho0, Param.Bfld_Eta);
+
+			if (A > A_max)
+				A_max = A;
+			}
 		
-			double A = pow(rho_norm, Param.Bfld_Eta);
-		
-			SphP[ipart].Apot[0] = (float) A;
-			SphP[ipart].Apot[1] = (float) A;
-	    	SphP[ipart].Apot[2] = (float) A;
+			SphP[ipart].Apot[0] = (float) A_max;
+			SphP[ipart].Apot[1] = (float) A_max;
+	    	SphP[ipart].Apot[2] = (float) A_max;
 		}
-	}
 
     return ;  
 }
@@ -73,51 +73,56 @@ static void normalise_magnetic_field()
 
  	double max_B2 = 0;
 
-	for (int i = 0; i < Param.Nhalos; i++) {
-
-		#pragma omp parallel for 
-	    for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
+	#pragma omp parallel for 
+	for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
 		
-			float x = P[ipart].Pos[0] - boxhalf,
-				  y = P[ipart].Pos[1] - boxhalf,
-				  z = P[ipart].Pos[2] - boxhalf;
-
-			int j = Halo_containing(P[ipart].Type, x, y, z);
-
-			if (j != i)
-				continue;
-
-			double bfld2 = p2(SphP[ipart].Bfld[0]) 
+		double bfld2 = p2(SphP[ipart].Bfld[0]) 
 				+ p2(SphP[ipart].Bfld[1]) 
 				+ p2(SphP[ipart].Bfld[2]);
 
-			max_B2 = fmax(max_B2, bfld2);
-		}
+		max_B2 = fmax(max_B2, bfld2);
+	}
 
-		double max_bfld = sqrt(max_B2);
+	double max_bfld = sqrt(max_B2);
 
-    	double norm = 1.3*Param.Bfld_Norm/max_bfld;
+   	double norm = Param.Bfld_Norm/max_bfld/ sqrt(3);
 
-		if (Param.Cuspy != 0)
-			norm *= 6;
+	printf("Bfld Norm = %g \n", norm );
 
-		#pragma omp parallel for 
-    	for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
+	int cnt = 0;
+
+	#pragma omp parallel for reduction(+:cnt) 
+   	for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
 		
-			float x = P[ipart].Pos[0] - boxhalf,
-				  y = P[ipart].Pos[1] - boxhalf,
-				  z = P[ipart].Pos[2] - boxhalf;
+		SphP[ipart].Bfld[0] *= norm;
+		SphP[ipart].Bfld[1] *= norm;
+		SphP[ipart].Bfld[2] *= norm;
 
-			int j = Halo_containing(P[ipart].Type, x, y, z);
+		double B2 = p2(SphP[ipart].Bfld[0]) + p2(SphP[ipart].Bfld[1]) + p2(SphP[ipart].Bfld[2]);
 
-			if (j != i)
-				continue;
+		double bmax = BMAX;
+	
+		float x = P[ipart].Pos[0] - boxhalf,
+			  y = P[ipart].Pos[1] - boxhalf,
+			  z = P[ipart].Pos[2] - boxhalf;
+			
+		int i = Halo_containing(ipart,x,y,z);
+		
+		if (i > 1)
+			bmax = 2e-6;
 
-			SphP[ipart].Bfld[0] *= norm;
-			SphP[ipart].Bfld[1] *= norm;
-			SphP[ipart].Bfld[2] *= norm;
+		if (B2 > p2(bmax) && i > 1) {
+
+			double B = sqrt(B2);
+
+			SphP[ipart].Bfld[0] *= bmax/B;
+			SphP[ipart].Bfld[1] *= bmax/B;
+			SphP[ipart].Bfld[2] *= bmax/B;
+			cnt++;
 		}
 	}
+
+	printf("Bfld of %d particles limited to %g G\n", cnt, BMAX);
 
 	return ;
 }

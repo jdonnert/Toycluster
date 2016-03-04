@@ -163,9 +163,9 @@ static void set_subhalo_masses(const double mass_fraction)
 
 static void set_subhalo_positions(int i)
 {
-	const double x_host = Halo[0].D_CoM[0];
-	const double y_host = Halo[0].D_CoM[1];
-	const double z_host = Halo[0].D_CoM[2];
+	const double x_host = Halo[SUBHOST].D_CoM[0];
+	const double y_host = Halo[SUBHOST].D_CoM[1];
+	const double z_host = Halo[SUBHOST].D_CoM[2];
 
 	double q = erand48(Omp.Seed);
 
@@ -218,9 +218,9 @@ static bool reject_subhalo(const int i)
 			resample = true; // overlaps
 	} // j
 
-	double dx = Halo[i].D_CoM[0] - Halo[0].D_CoM[0];
-	double dy = Halo[i].D_CoM[1] - Halo[0].D_CoM[1];
-	double dz = Halo[i].D_CoM[2] - Halo[0].D_CoM[2];
+	double dx = Halo[i].D_CoM[0] - Halo[SUBHOST].D_CoM[0];
+	double dy = Halo[i].D_CoM[1] - Halo[SUBHOST].D_CoM[1];
+	double dz = Halo[i].D_CoM[2] - Halo[SUBHOST].D_CoM[2];
 
 	double r = sqrt(dx*dx + dy*dy + dz*dz);
 
@@ -251,14 +251,14 @@ static bool reject_subhalo(const int i)
 
 static void set_subhalo_properties(const int i)
 {
-	double dx = Halo[0].D_CoM[0] - Halo[i].D_CoM[0];
-	double dy = Halo[0].D_CoM[1] - Halo[i].D_CoM[1];
-	double dz = Halo[0].D_CoM[2] - Halo[i].D_CoM[2];
+	double dx = Halo[SUBHOST].D_CoM[0] - Halo[i].D_CoM[0];
+	double dy = Halo[SUBHOST].D_CoM[1] - Halo[i].D_CoM[1];
+	double dz = Halo[SUBHOST].D_CoM[2] - Halo[i].D_CoM[2];
 		
 	const double r_i = sqrt(dx*dx + dy*dy + dz*dz);
 
-	double a =  Halo[0].A_hernq / 10; // first guess (small)
-	double r200 = Halo[0].R200;
+	double a =  Halo[SUBHOST].A_hernq / 10; // first guess (small)
+	double r200 = Halo[SUBHOST].R200;
 	double c_nfw = 0;
 	double rsample = 0;
 
@@ -366,17 +366,23 @@ static void set_subhalo_particle_numbers()
 		Sub.Npart[1] += nDM;
 	}
 
-	Halo[0].Ntotal -= Sub.Ntotal; // correct <0> particle numbers
-	Halo[0].Npart[0] -= Sub.Npart[0];
-	Halo[0].Npart[1] -= Sub.Npart[1];
+	Halo[SUBHOST].Ntotal -= Sub.Ntotal; // correct <0> particle numbers
+	Halo[SUBHOST].Npart[0] -= Sub.Npart[0];
+	Halo[SUBHOST].Npart[1] -= Sub.Npart[1];
 
 	return ;
 }
 
 static void	set_subhalo_pointers()
 {
-	int iGas = Halo[0].Npart[0], 
-	    iDM = Param.Npart[0] + Halo[0].Npart[1];
+	int iGas = 0; 
+	int  iDM =  Param.Npart[0];
+
+	for (int i = 0; i <SUBHOST+1; i++) {
+	
+		iGas += Halo[i].Npart[0];
+		iDM += Halo[i].Npart[1];
+	}
 
 	for (int i = Sub.First; i < Param.Nhalos; i++) {
 		
@@ -419,8 +425,8 @@ static double sampling_radius(const int i, const double d)
 static double tidal_radius(const int i, const double r)
 {
 	double m_sub = Halo[i].Mass[1];
-	double m_host = Halo[0].Mass200[1];
-	double a = Halo[0].A_hernq;
+	double m_host = Halo[SUBHOST].Mass200[1];
+	double a = Halo[SUBHOST].A_hernq;
 
 	double fac = (2*r*r / p2(a+r) * (1 - a*r*r / p3(r+a)));
 	
@@ -434,7 +440,7 @@ static double subhalo_mass_function(const double m)
 	
 	const double z = Param.Redshift;
 	const double mSub = m * Unit.Mass / Msol2cgs;
-	const double mHost = Halo[0].Mass200[1] * Unit.Mass / Msol2cgs;
+	const double mHost = Halo[SUBHOST].Mass200[1] * Unit.Mass / Msol2cgs;
 
 	const double x = mSub/mHost;
 
@@ -447,21 +453,21 @@ static double subhalo_mass_fraction()
 #ifndef THIRD_HALO_ONLY
 	return 0.22 * sqrt(1+Param.Redshift);
 #else
-	return Halo[0].Mtotal200 / Param.SubFirstMass;
+	return Halo[SUBHOST].Mtotal200 / Param.SubFirstMass;
 #endif
 }
 
 /* Gao+ 2004 */
 static double subhalo_number_density_profile(const double r)
 {
-	const double  ac = 0.244 * Halo[0].C_nfw, alpha = 2, beta = 2.75;
+	const double  ac = 0.244 * Halo[SUBHOST].C_nfw, alpha = 2, beta = 2.75;
 	
 	return (1 + ac) * pow(r, beta) / (1 + ac*pow(r,alpha));
 }
 
 static double inverted_subhalo_number_density_profile(const double q)
 {
-	double left = 0, right = Halo[0].R200, r = 0, delta = DBL_MAX;	
+	double left = 0, right = Halo[SUBHOST].R200, r = 0, delta = DBL_MAX;	
 
 	while (fabs(delta) > 1e-3) { // find root
 	
@@ -480,7 +486,7 @@ static double inverted_subhalo_number_density_profile(const double q)
 
 static double nfw_scale_radius(const double c_nfw, const double M_t, const double r)
 { // Springel+ 2008 eq 7-9
-	double left = 0, right = Halo[0].R_Sample[0], rs = 0, delta = DBL_MAX;	
+	double left = 0, right = Halo[SUBHOST].R_Sample[0], rs = 0, delta = DBL_MAX;	
 
 	while (fabs(delta) > 1e-3) { // find root
 		
@@ -519,9 +525,9 @@ static void set_subhalo_bulkvel(const int i)
 {
 	const double G = Grav/p3(Unit.Length)*Unit.Mass*p2(Unit.Time);
 
-	double dx = Halo[0].D_CoM[0] - Halo[i].D_CoM[0];
-	double dy = Halo[0].D_CoM[1] - Halo[i].D_CoM[1];
-	double dz = Halo[0].D_CoM[2] - Halo[i].D_CoM[2];
+	double dx = Halo[SUBHOST].D_CoM[0] - Halo[i].D_CoM[0];
+	double dy = Halo[SUBHOST].D_CoM[1] - Halo[i].D_CoM[1];
+	double dz = Halo[SUBHOST].D_CoM[2] - Halo[i].D_CoM[2];
 		
 	const double r = sqrt(dx*dx + dy*dy + dz*dz);
 
@@ -534,14 +540,14 @@ static void set_subhalo_bulkvel(const int i)
 	double norm = sqrt( p2(vel[0]) + p2(vel[1]) + p2(vel[2]) );
 	double impactfac = erand48(Omp.Seed) * MAX_IMPACT_FACTOR;
 
-	vel[0] = Halo[i].D_CoM[0] - (Halo[0].D_CoM[0] + impactfac*vel[0]/norm);
-	vel[1] = Halo[i].D_CoM[1] - (Halo[0].D_CoM[1] + impactfac*vel[1]/norm);
-	vel[2] = Halo[i].D_CoM[2] - (Halo[0].D_CoM[2] + impactfac*vel[2]/norm);
+	vel[0] = Halo[i].D_CoM[0] - (Halo[SUBHOST].D_CoM[0] + impactfac*vel[0]/norm);
+	vel[1] = Halo[i].D_CoM[1] - (Halo[SUBHOST].D_CoM[1] + impactfac*vel[1]/norm);
+	vel[2] = Halo[i].D_CoM[2] - (Halo[SUBHOST].D_CoM[2] + impactfac*vel[2]/norm);
 
 	norm = sqrt(p2(vel[0]) + p2(vel[1]) + p2(vel[2]));
 
 	double v = ENERGY_ORBIT_FRACTION_SUBH *	
-		sqrt( 2*G * Halo[0].Mtotal200 / r);
+		sqrt( 2*G * Halo[SUBHOST].Mtotal200 / r);
 
 #ifdef ADD_THIRD_SUBHALO
 	if (i == Sub.First) {

@@ -4,15 +4,16 @@ SHELL = /bin/bash
 OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
 
 #OPT     += -DPARABOLA       # merge in a parabula
-OPT		+= -DCOMET			# merge like a comet, ball+tail (recommended)
+OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
-OPT 	+= -DZERO_ENERGY_ORBIT_FRACTION 0.8 # fraction of zero energy orbit in vel 
+OPT 	+= -DZERO_ENERGY_ORBIT_FRACTION=0.2 # fraction of zero energy orbit in vel 
 
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
-#OPT	+= -DSUBSTRUCTURE	# add substructure
-#OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
-#OPT += -DREPORTSUBHALOS		# print info about all subhaloes
+OPT	+= -DSUBSTRUCTURE	# add substructure
+OPT    += -DSUBHOST=1		# host halos
+OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
+OPT += -DREPORTSUBHALOS		# print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
 #OPT  += -DTHIRD_HALO_ONLY 
@@ -30,23 +31,14 @@ GSL_LIBS = $(LDFLAGS)
 
 ifeq ($(SYSTYPE),DARWIN)
 CC      	=  icc
-OPTIMIZE	= -O3 -m64 -fopenmp -mtune=native 
+OPTIMIZE	= -fast -m64  -xhost
 GSL_INCL 	= $(CPPFLAGS)
-GSL_LIBS	= -L/Users/julius/Devel/lib
-endif
-
-ifeq ($(SYSTYPE),MPA64)
-CC      	=  gcc
-OPTIMIZE	= -O3 -Wall -g 
-GSL_INCL 	= -I/afs/mpa/home/jdonnert/Libs/@sys/include
-GSL_LIBS	= -L/afs/mpa/home/jdonnert/Libs/@sys/lib
-FFTW_LIBS	= 
-FFTW_INCL 	=
+GSL_LIBS	= -L/Users/jdonnert/Dev/lib
 endif
 
 ifeq ($(SYSTYPE),MSI)
 CC      	= icc
-OPTIMIZE	= -O3 -Wall -g -xhost -ipo 
+OPTIMIZE	= -Wall -g  -O3 -xhost
 GSL_INCL 	= 
 GSL_LIBS	= 
 FFTW_LIBS 	= 

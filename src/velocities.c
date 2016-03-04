@@ -52,7 +52,7 @@ void Make_velocities()
 
 		double M = Halo[i].Mtotal;
 
-		double dCoM[3] = {Halo[i].D_CoM[0], Halo[i].D_CoM[1], Halo[i].D_CoM[2]};
+		double dCoM[3] = {Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
 
 		#pragma omp parallel for schedule(dynamic)  
         for (size_t ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM
@@ -390,7 +390,8 @@ double gas_potential_profile(const int i, const float r)
 
 void set_subhalo_bulk_velocities()
 {
-	const float d0[3] = {Halo[0].D_CoM[0], Halo[0].D_CoM[1], Halo[0].D_CoM[2]};
+	const float d0[3] = {Halo[SUBHOST].D_CoM[0], Halo[SUBHOST].D_CoM[1], 
+						Halo[SUBHOST].D_CoM[2]};
 
 	printf("\n");
 

@@ -288,7 +288,11 @@ void Setup()
         Halo[0].D_CoM[2] = 0;
         Param.VelMerger[0] = Param.VelMerger[1] = 0;
     }
-    
+
+#ifdef SUBSTRUCTURE
+	printf("\nSubhalos hosted by cluster <%d> \n\n",SUBHOST );
+#endif
+
 	return;
 }
 
@@ -478,9 +482,9 @@ double Concentration_parameter(const int i)
 		const double aR = 0.237, c1 = 232.15, c2 = -181.74, 
 			  a1 = 0.0146, a2 = 0.008;  // Pieri 2009, fit to Aquarius
 
-		double dx = Halo[0].D_CoM[0] - Halo[i].D_CoM[0];
-		double dy = Halo[0].D_CoM[1] - Halo[i].D_CoM[1];
-		double dz = Halo[0].D_CoM[2] - Halo[i].D_CoM[2];
+		double dx = Halo[SUBHOST].D_CoM[0] - Halo[i].D_CoM[0];
+		double dy = Halo[SUBHOST].D_CoM[1] - Halo[i].D_CoM[1];
+		double dz = Halo[SUBHOST].D_CoM[2] - Halo[i].D_CoM[2];
 		
 		double d_vir = sqrt(dx*dx + dy*dy + dz*dz) / Halo[0].R200; 
 

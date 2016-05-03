@@ -469,8 +469,11 @@ void Read_param_file(char *filename)
 	}
 
 #ifndef GIVEPARAMS // Keep Xm < 0 so we don't screw up Dvel 
-     Param.Mass_Ratio = fmin(Param.Mass_Ratio, 1/Param.Mass_Ratio);
-	 Sub.First = ceil(1+Param.Mass_Ratio);
+     //Param.Mass_Ratio = fmin(Param.Mass_Ratio, 1/Param.Mass_Ratio);
+	if (Param.Mass_Ratio == 0)
+	 	Sub.First = 1;
+	else 
+		Sub.First = 2;
 #endif
 	
 	 return;

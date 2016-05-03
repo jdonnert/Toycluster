@@ -82,7 +82,7 @@ void Regularise_sph_particles()
        	printf("   #%02d: Err max=%3g cur=%03g last=%03g diff=%03g step=%g\n", 
 				it, errMax, errMean, errLast, errDiff, step); 
 
-		if (errDiff < ERRDIFF_LIMIT && it > 15) 
+		if (errDiff < ERRDIFF_LIMIT && it > 25) 
 			break;
 
 		if ((errDiff < 0) && (errDiffLast < 0))

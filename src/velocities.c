@@ -29,6 +29,7 @@ typedef struct {
 } interpolation_parameters;
 
 static interpolation_parameters fE_params;
+#pragma omp threadprivate(fE_params)
 
 void Make_velocities()
 {
@@ -54,7 +55,7 @@ void Make_velocities()
 
 		double dCoM[3] = {Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
 
-		#pragma omp parallel for schedule(dynamic)  
+		//#pragma omp parallel for schedule(dynamic) 
         for (size_t ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM
 
 			double dx = Halo[i].DM[ipart].Pos[0] - dCoM[0] - boxhalf;
@@ -62,15 +63,15 @@ void Make_velocities()
             double dz = Halo[i].DM[ipart].Pos[2] - dCoM[2] - boxhalf;
 
             double r = fmax(RMIN, sqrt(dx*dx + dy*dy + dz*dz)); 
-
+			
 			double pot = -potential_profile(i, r); // rejection sampling
             double vmax = sqrt(-2*pot);
             double emax = pot;
 			double qmax = 4*pi * p2(vmax)/M * distribution_function(-emax);
 
             double v = 0;
-			
-            for (;;) { // Ascasibar+ 2005, Press+ 1992
+            
+			for (;;) { // Ascasibar+ 2005, Press+ 1992
 
                 double lower_bound = qmax * erand48(Omp.Seed);
 
@@ -178,7 +179,7 @@ static void calc_distribution_function_table(int iCluster)
 	double rstep = log10(1e5 * rmax) / NSAMPLE; // good up to one Gpc
 
 	double psi[NSAMPLE] = { 0 }, rho[NSAMPLE] = { 0 };
-
+	
 	#pragma omp parallel for  
 	for (int i = 0; i < NSAMPLE; i++) {
 		
@@ -246,9 +247,12 @@ static void calc_distribution_function_table(int iCluster)
 
 	gsl_set_error_handler(old_handler);
 
+	#pragma omp parallel
+	{
 	fE_params.acc = gsl_interp_accel_alloc();
 	fE_params.spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
-	
+	}
+
 	for (int i = 0; i < NTABLE; i++) {
 		
 		x[i] = E[NTABLE-i-1];
@@ -256,6 +260,7 @@ static void calc_distribution_function_table(int iCluster)
 		y[i] = fE[NTABLE-i-1];
 	}
 
+	#pragma omp parallel
 	gsl_spline_init(fE_params.spline, x, y, NTABLE);
 	
 	/*for (int i = 0; i < 2*NTABLE; i++) {
@@ -396,7 +401,7 @@ void set_subhalo_bulk_velocities()
 	printf("\n");
 
 	for (int i = Sub.First; i < Param.Nhalos; i++) { 
-
+		
 		double M = Halo[i].Mtotal;
                
         float dx = Halo[i].D_CoM[0] - d0[0];
@@ -439,7 +444,7 @@ void set_subhalo_bulk_velocities()
         Halo[i].BulkVel[2] = (float) (v * cos(theta));
 
 		printf("Sub=%d v=%g r=%g cs=%g Gas Stripped ?=%d\n",
-				i, v, r/Halo[0].R200, cs, Halo[i].Is_Stripped);
+				i, v, r/Halo[SUBHOST].R200, cs, Halo[i].Is_Stripped);
 	}
 
 	return ;

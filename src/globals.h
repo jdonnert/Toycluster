@@ -38,7 +38,7 @@
 
 #define R200_TO_RMAX_RATIO 3.75 // this fits Y_M500 correlation 
 #define MAXHALOS 4096      // maximum number of subhalos
-#define ZERO_ENERGY_ORBIT_FRACTION_SUB 0.3 // substructure vel fraction
+#define ZERO_ENERGY_ORBIT_FRACTION_SUB 1 // substructure vel fraction
 
 /* mathematical constants */
 #define pi 			M_PI

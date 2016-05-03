@@ -1,7 +1,7 @@
 #include "globals.h"
 #include "tree.h"
 
-#define BMAX 15e-6
+#define BMAX 18e-6
 #define KLOWCUT (2*pi / Param.Boxsize * 32)
 #define KHIGHCUT (2*pi / 100)
 #define SPECTRAL_INDEX (-11.0/3.0)
@@ -99,8 +99,6 @@ static void normalise_magnetic_field()
 		SphP[ipart].Bfld[2] *= norm;
 
 		double B2 = p2(SphP[ipart].Bfld[0]) + p2(SphP[ipart].Bfld[1]) + p2(SphP[ipart].Bfld[2]);
-
-		double bmax = BMAX;
 	
 		float x = P[ipart].Pos[0] - boxhalf,
 			  y = P[ipart].Pos[1] - boxhalf,
@@ -108,16 +106,18 @@ static void normalise_magnetic_field()
 			
 		int i = Halo_containing(ipart,x,y,z);
 		
+		double bmax = BMAX;
 		if (i > 1)
 			bmax = 2e-6;
 
-		if (B2 > p2(bmax) && i > 1) {
+		if ((B2 > p2(bmax)) && (i > 1)) {
 
 			double B = sqrt(B2);
 
 			SphP[ipart].Bfld[0] *= bmax/B;
 			SphP[ipart].Bfld[1] *= bmax/B;
 			SphP[ipart].Bfld[2] *= bmax/B;
+
 			cnt++;
 		}
 	}

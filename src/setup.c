@@ -15,17 +15,23 @@ void Setup()
 	const double rho_crit =  Critical_Density(z);
 	const double delta = Overdensity_Parameter();
     
+	printf("Mass Ratio: %g \n", Xm);
+
     /* Halo Masses inside r200 */
     Halo[0].Mtotal200 = Param.Mtot200 / (1+Xm) ;
     Halo[1].Mtotal200 = Param.Mtot200 - Halo[0].Mtotal200;
 
-    Param.Nhalos = ceil(1 + Xm); // 1 or 2 now
+	printf("%g %g \n", Halo[0].Mtotal200, Halo[1].Mtotal200);        
+
+	if (Xm == 0)
+	    Param.Nhalos = 1;
+	else
+		Param.Nhalos = 2;
 
     for (int i = 0; i < Param.Nhalos; i++) { 
 
         Halo[i].Mass200[1] = Halo[i].Mtotal200 / (1+bf);
         Halo[i].Mass200[0] = Halo[i].Mtotal200 - Halo[i].Mass200[1];
-        
 		double c_nfw = Halo[i].C_nfw = Concentration_parameter(i);
 
         /* R200, Kitayama & Suto 99, Boehringer+ 2012 (1) */
@@ -226,19 +232,19 @@ void Setup()
     /* kinematics */
     if (Xm) { // two clusters only
 
-        d_clusters = 1.3 * (Halo[0].R200 + Halo[1].R200);
+        d_clusters = 0.9 * (Halo[0].R200 + Halo[1].R200);
     
         Halo[0].D_CoM[0] = -1 * Halo[1].Mtotal200
             *d_clusters/Param.Mtot200;
         Halo[1].D_CoM[0] = d_clusters + Halo[0].D_CoM[0];
         
-        if (Xm > 1) {
+  /*      if (Xm > 1) {
 
             Halo[1].D_CoM[0] = -1 * Halo[1].Mtotal200
             *d_clusters/Param.Mtot200;
             
 			Halo[0].D_CoM[0] = d_clusters + Halo[0].D_CoM[0];
-        }
+        }*/
 
         Halo[0].D_CoM[1] = -1 * Halo[1].Mtotal200 
             * Param.Impact_Param/Param.Mtot200;

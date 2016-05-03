@@ -15,13 +15,9 @@ void Setup()
 	const double rho_crit =  Critical_Density(z);
 	const double delta = Overdensity_Parameter();
     
-	printf("Mass Ratio: %g \n", Xm);
-
     /* Halo Masses inside r200 */
     Halo[0].Mtotal200 = Param.Mtot200 / (1+Xm) ;
     Halo[1].Mtotal200 = Param.Mtot200 - Halo[0].Mtotal200;
-
-	printf("%g %g \n", Halo[0].Mtotal200, Halo[1].Mtotal200);        
 
 	if (Xm == 0)
 	    Param.Nhalos = 1;
@@ -32,6 +28,7 @@ void Setup()
 
         Halo[i].Mass200[1] = Halo[i].Mtotal200 / (1+bf);
         Halo[i].Mass200[0] = Halo[i].Mtotal200 - Halo[i].Mass200[1];
+
 		double c_nfw = Halo[i].C_nfw = Concentration_parameter(i);
 
         /* R200, Kitayama & Suto 99, Boehringer+ 2012 (1) */
@@ -88,23 +85,23 @@ void Setup()
         }
         
 		printf("Halo Setup : <%d>\n"
-               "   Model           	 = %s\n"
+               "   Model             = %s\n"
                "   Sample Radius Gas = %g kpc\n"
                "   Sample Radius DM  = %g kpc\n"
-			   "   qmax            	 = %g \n"
-               "   Mass            	 = %g 10^5 MSol\n"
-               "   Mass in DM      	 = %g 10^5 MSol\n"
-               "   Mass in Gas     	 = %g 10^5 MSol\n"
-               "   Mass in R200    	 = %g 10^5 MSol\n"
-               "   c_nfw           	 = %g \n"
-               "   R200            	 = %g kpc\n"
-               "   a_hernquist     	 = %g kpc\n"
-               "   rho0_gas        	 = %g g/cm^3\n"
-               "   rho0_gas        	 = %g [gadget]\n"
-               "   beta            	 = 2/3 \n"
-               "   rc              	 = %g kpc\n"
-               ,i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1], 
-			   Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1]
+			   "   qmax              = %g \n"
+               "   Mass              = %g 10^10 MSol\n"
+               "   Mass in DM        = %g 10^10 MSol\n"
+               "   Mass in Gas       = %g 10^10 MSol\n"
+               "   Mass in R200      = %g 10^10 MSol\n"
+               "   c_nfw             = %g \n"
+               "   R200              = %g kpc\n"
+               "   a_hernquist       = %g kpc\n"
+               "   rho0_gas          = %g g/cm^3\n"
+               "   rho0_gas          = %g [gadget]\n"
+               "   beta              = 2/3 \n"
+               "   rc                = %g kpc\n"
+               ,i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1]
+			   , Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1]
                ,Halo[i].Mass[0] ,Halo[i].Mtotal200
                , Halo[i].C_nfw, Halo[i].R200*Unit.Length/kpc2cgs
                , Halo[i].A_hernq*Unit.Length/kpc2cgs
@@ -113,11 +110,9 @@ void Setup()
         Param.Mtotal += Halo[i].Mtotal;
         mtot[0] += Halo[i].Mass[0];
         mtot[1] += Halo[i].Mass[1];
-    }
 
-	/* Calc & show effective Baryon Fraction in R500 */
-    for (int i = 0; i < Param.Nhalos; i++) {
-		
+		/* Calc & show effective Baryon Fraction in R500 */
+
 		if (!bf) // DM only
 			continue;
 
@@ -131,9 +126,10 @@ void Setup()
 
         double r500 = Halo[i].R500 * Unit.Length;
 		double Mdm = Halo[i].Mass[1] * Unit.Mass;
-		double rho0 = Density(Halo[i].Rho0);
-		double a = Halo[i].A_hernq * Unit.Length;
-		double rc = Halo[i].Rcore * Unit.Length;
+
+		rho0 = Density(Halo[i].Rho0);
+		a = Halo[i].A_hernq * Unit.Length;
+		rc = Halo[i].Rcore * Unit.Length;
 
 		Halo[i].Bf_eff = 4*pi*p3(rc)*rho0 * (r500/rc - atan(r500/rc))
 			/ (Mdm * p2(r500) / p2(a+r500) );
@@ -142,6 +138,8 @@ void Setup()
 			   "   bf_200          = %g \n"
 			   "   bf_500          = %g \n",
 				r500/Unit.Length, bf, Halo[i].Bf_eff);
+
+		printf("\n");
 	}
     
     /* Particle numbers are calculated from the global
@@ -178,20 +176,21 @@ void Setup()
         Param.Npart[i] = Halo[0].Npart[i]+Halo[1].Npart[i];
 
     printf("\nSystem Setup : \n"
+			"   Mass Ratio      = %g\n"
             "   Boxsize         = %g kpc\n"
-            "   Total Mass      = %g 10^5 Msol\n"
-            "   Mass in Gas     = %g 10^5 Msol\n"
-            "   Mass in DM      = %g 10^5 Msol\n"
+            "   Total Mass      = %g 10^10 Msol\n"
+            "   Mass in Gas     = %g 10^10 Msol\n"
+            "   Mass in DM      = %g 10^10 Msol\n"
             "   Mass Ratio      = %g\n"
             "   given bf        = %g\n"
             "   boxwide bf      = %g\n"
             "   # of Particles  = %lld\n"
-            "   Sph Part Mass   = %g 10^5 Msol\n"
-            "   DM Part Mass    = %g 10^5 Msol\n"
+            "   Sph Part Mass   = %g 10^10 Msol\n"
+            "   DM Part Mass    = %g 10^10 Msol\n"
 			"   Npart Parent    = %8lld, %8lld \n"
 			"   Npart Bullet    = %8lld, %8lld \n"
 			"   Npart Total     = %8lld, %8lld\n\n"
-            ,Param.Boxsize 
+            , Param.Mass_Ratio, Param.Boxsize 
             ,Param.Mtotal,mtot[0],mtot[1],Xm
             ,bf, mtot[0]/mtot[1]
             ,Param.Ntotal,Param.Mpart[0],Param.Mpart[1],

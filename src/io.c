@@ -414,6 +414,16 @@ void Read_param_file(char *filename)
 	id[nt++] = REAL;
 
 #endif
+
+#ifdef DOUBLE_BETA_COOL_CORES
+	strcpy(tag[nt], "Rho0_Fac");
+	addr[nt] = &Param.Rho0_Fac;
+	id[nt++] = REAL;
+
+	strcpy(tag[nt], "Rc_Fac");
+	addr[nt] = &Param.Rc_Fac;
+	id[nt++] = REAL;
+#endif
     
     /* Add above */
 	id[nt] = LASTPARAMETERID;		

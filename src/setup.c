@@ -65,14 +65,15 @@ void Setup()
 		Halo[i].Rcore = Gas_core_radius(i, string);
 		
 		double rc = Halo[i].Rcore;
+		int cuspy = Halo[i].Have_Cuspy;
 
-       	Halo[i].Rho0 = m200_gas / Mass_profile(r200, 1, rc, rcut);
+       	Halo[i].Rho0 = m200_gas / Mass_profile(r200, 1, rc, rcut, cuspy);
 		
 		double rho0 = Halo[i].Rho0;
 
 		Halo[i].MassCorrFac = 1/(1 + 2*a/rs_dm + p2(a/rs_dm));
 
-	    Halo[i].Mass[0] = Mass_profile(rs_gas, rho0, rc, rcut);
+	    Halo[i].Mass[0] = Mass_profile(rs_gas, rho0, rc, rcut, cuspy);
 
         Halo[i].Mass[1] = m200_dm * (1 + 2*a/r200 + p2(a/r200)) 
 			* Halo[i].MassCorrFac; // correct for finite R_sample != infty
@@ -107,16 +108,24 @@ void Setup()
                , Halo[i].A_hernq*Unit.Length/kpc2cgs
                , Density(Halo[i].Rho0), Halo[i].Rho0,Halo[i].Rcore);
 
+#ifdef DOUBLE_BETA_COOL_CORES
+		printf("   rho0_cc           = %g g/cm^3\n"
+			   "   rho0_cc           = %g [gadget]\n"
+               "   rc_cc             = %g kpc\n",
+				Density(Halo[i].Rho0*Param.Rho0_Fac), 
+				Halo[i].Rho0*Param.Rho0_Fac,Halo[i].Rcore/Param.Rc_Fac );
+#endif // DOUBLE_BETA_COOL_CORES
+
         Param.Mtotal += Halo[i].Mtotal;
         mtot[0] += Halo[i].Mass[0];
         mtot[1] += Halo[i].Mass[1];
 
 		/* Calc & show effective Baryon Fraction in R500 */
 
-		if (!bf) // DM only
+		if (bf == 0) // DM only
 			continue;
 
-		if (!Halo[i].Mtotal200)
+		if (Halo[i].Mtotal200 == 0)
 			continue;
 
 		/* R500 */
@@ -237,7 +246,7 @@ void Setup()
             *d_clusters/Param.Mtot200;
         Halo[1].D_CoM[0] = d_clusters + Halo[0].D_CoM[0];
         
-  /*      if (Xm > 1) {
+  		/* if (Xm > 1) {
 
             Halo[1].D_CoM[0] = -1 * Halo[1].Mtotal200
             *d_clusters/Param.Mtot200;
@@ -520,12 +529,24 @@ double Gas_core_radius(const int i, char *string)
 
 		sprintf(string, "Cool Core ");
             
-		rc = Halo[i].Rs / 10;
+		rc = Halo[i].Rs / 9;
+
+		Halo[i].Have_Cuspy = 1;
+
+#ifdef DOUBLE_BETA_COOL_CORES
+
+		sprintf(string, "Double Beta Cool Core (%g, %g)", 
+				Param.Rho0_Fac, Param.Rc_Fac);
+
+		rc = Halo[i].Rs / 3;
+#endif
 	} else {
             
 		sprintf(string, "Disturbed ");
             
 		rc = Halo[i].Rs / 3;
+		
+		Halo[i].Have_Cuspy = 0;
     }
 
 	return rc;
@@ -537,18 +558,18 @@ Hernquist_density_profile(const double m, const double a, const double r)
 	return m / (2*pi) * a/(r*p3(r+a));
 }
 
-/* return M(<= R) of a double beta profile with beta=2/3 */
+/* return M(<= R) of a beta profile with beta=2/3 */
 double Mass_profile(const double r, const double rho0, const double rc, 
-		const double rcut)
+		const double rcut, const bool Is_Cuspy)
 {	
-//	double Mr = p2(rc) * p2(rcut) / (p2(rcut) - p2(rc))  // 2nd order cut
-//		* (rcut*atan(r/rcut) - rc*atan(r/rc)); 
-	
 	const double r2 = p2(r);
 	const double rc2 = p2(rc);
 	const double rcut2 = p2(rcut);
 
-	/*double Mr = rc2*rcut2*rcut/6/(rc2*rc2*rc2 + rcut2*rcut2*rcut2) * 
+	/*double Mr = p2(rc) * p2(rcut) / (p2(rcut) - p2(rc))  // 2nd order cut
+		* (rcut*atan(r/rcut) - rc*atan(r/rc)); 
+	
+	double Mr = rc2*rcut2*rcut/6/(rc2*rc2*rc2 + rcut2*rcut2*rcut2) * 
 		(2*p2(rc2)*log(p3(rcut) + p3(r)) + rc2*rcut2 * log(rcut2 - rcut*r + r2)
 		 - 2*rc2*rcut2 * log(rcut + r) 
 		 + 2*sqrt(3)*rcut2*(rc2 + rcut2) * atan((2*r-rcut)/sqrt(3)/rcut)
@@ -556,22 +577,49 @@ double Mass_profile(const double r, const double rho0, const double rc,
 		 + 2*rcut2*rcut2 * log(rcut + r) 
 		 - rcut2*rcut2*log(rcut2 - rcut*r + r2));*/ // 3rd order
 
-	double Mr = rc2*rcut2*rcut/(8*(p2(rcut2)+p2(rc2))) * // fourth order
+	double Mr = rho0 * rc2*rcut2*rcut/(8*(p2(rcut2)+p2(rc2))) * // fourth order
 		( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2) 
 								- log(rcut2 + sqrt2*rcut*r+r2)) 
 				   - 2 * (rc2 + rcut2) * atan(1 - sqrt2*r/rcut) 
 				   + 2 * (rc2 + rcut2) * atan(sqrt2 * r/rcut + 1))
 		  - 8 * rc * rcut * atan(r/rc)); 
 
-	
-	return 4 * pi * rho0 * Mr;
+#ifdef DOUBLE_BETA_COOL_CORES
+		
+	double rc_cc = rc / Param.Rc_Fac;
+	double rc2_cc = p2(rc_cc);
+	double rho0_cc = rho0 * Param.Rho0_Fac;
+
+	if (Is_Cuspy)
+		Mr += rho0_cc * rc2_cc*rcut2*rcut/(8*(p2(rcut2)+p2(rc2_cc))) * 
+			( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2) 
+									- log(rcut2 + sqrt2*rcut*r+r2)) 
+					   - 2 * (rc2_cc + rcut2) * atan(1 - sqrt2*r/rcut) 
+					   + 2 * (rc2_cc + rcut2) * atan(sqrt2 * r/rcut + 1))
+			  - 8 * rc_cc * rcut * atan(r/rc));
+
+#endif // DOUBLE_BETA_COOL_CORES
+
+	return 4 * pi * Mr;
 }
 
 /* Double beta profile at rc and rcut */
 double Gas_density_profile(const double r, const double rho0, 
-		const double rc, const double rcut)
+		const double rc, const double rcut, const bool Is_Cuspy)
 {
-	return rho0 / (1 + p2(r/rc)) / (1 + p3(r/rcut) * (r/rcut));
+	double rho = rho0 / (1 + p2(r/rc)) / (1 + p3(r/rcut) * (r/rcut));
+
+#ifdef DOUBLE_BETA_COOL_CORES
+
+	double rho0_cc = rho0 * Param.Rho0_Fac;
+	double rc_cc = rc / Param.Rc_Fac;
+	
+	if (Is_Cuspy)
+		rho += rho0_cc / (1 + p2(r/rc_cc)) / (1 + p3(r/rcut) * (r/rcut));
+
+#endif // DOUBLE_BETA_COOL_CORES
+
+	return rho;
 }
 
 

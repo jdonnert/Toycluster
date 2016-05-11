@@ -62,11 +62,18 @@ double Internal_Energy_Profile(const int i, const double d)
 {
     const double G = Grav/p3(Unit.Length)*Unit.Mass*p2(Unit.Time);
 		
-    const double rho0 = Halo[i].Rho0; 
+    double rho0 = Halo[i].Rho0; 
     const double a = Halo[i].A_hernq;
-    const double rc = Halo[i].Rcore;
+    double rc = Halo[i].Rcore;
     double rmax = Param.Boxsize; // "open" T boundary
     double Mdm = 1.10 * Halo[i].Mass[1];
+
+#ifdef DOUBLE_BETA_COOL_CORES
+	
+	rc *= 2/Param.Rc_Fac; // pretend its still a single beta model
+	rho0 *= Param.Rho0_Fac;
+
+#endif
 
 	double u = G / ( (adiabatic_index-1) ) * ( 1 + p2(d/rc) ) *
                 ( Mdm * (F1(rmax, rc, a) - F1(d, rc, a))

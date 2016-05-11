@@ -360,11 +360,11 @@ double gas_potential_profile(const int i, const float r)
 	if (r > 2*Halo[i].Rcut)
 		return 0;
 
-	const double rc = Halo[i].Rcore;
+	double rc = Halo[i].Rcore;
 	const double rcut = Halo[i].Rcut;
 
 	const double r2 = r*r;
-	const double rc2 = rc*rc;
+	double rc2 = rc*rc;
 	const double rcut2 = rcut*rcut;
 
 	double psi = -1 * rc2*rcut2/(8*(rc2*rc2 + rcut2*rcut2)*r)
@@ -378,10 +378,32 @@ double gas_potential_profile(const int i, const float r)
 					- sqrt2*rcut2*log(rcut2 + sqrt2*rcut*r + r2) 
 					- 2*rcut*r*log(rcut2*rcut2 + r2*r2))) ; 
 
+	psi *= Halo[i].Rho0;
+
+#ifdef DOUBLE_BETA_COOL_CORES
+
+	rc /= rc / Param.Rc_Fac;
+	rc2 = p2(rc);
+
+	double psi_cc = -1 * rc2*rcut2/(8*(rc2*rc2 + rcut2*rcut2)*r)
+				*(8*rc*rcut2*atan(r/rc) + 4*rc2*r*atan(r2/rcut2) 
+				+ rcut*(2*sqrt2*(rc2 + rcut2)*atan(1 - (sqrt2*r)/rcut) 
+					- 2*sqrt2*(rc2 + rcut2)* atan(1 + (sqrt2*r)/rcut) 
+					+ 4*rcut*r*log(rc2 + r2) 
+					- sqrt2*rc2* log(rcut2 - sqrt2*rcut*r + r2) 
+					+ sqrt2*rcut2*log(rcut2 - sqrt2*rcut*r + r2) 
+					+ sqrt2*rc2*log(rcut2 + sqrt2*rcut*r + r2) 
+					- sqrt2*rcut2*log(rcut2 + sqrt2*rcut*r + r2) 
+					- 2*rcut*r*log(rcut2*rcut2 + r2*r2))) ; 
+
+	psi += psi_cc * Halo[i].Rho0 * Param.Rho0_Fac;
+
+#endif // DOUBLE_BETA_COOL_CORES
+
 	//double psi =  p3(rc)*( 0.5/rc*log(rc*rc+r*r) + atan(r/rc)/r )
 //			* p2(p2(1 - r/rcut)) // no cutoff
 
-	return 4*pi*Halo[i].Rho0 * G * psi;
+	return 4*pi*G * psi;
 }
 
 #ifdef SUBSTRUCTURE

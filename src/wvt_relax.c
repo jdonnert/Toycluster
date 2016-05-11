@@ -4,7 +4,7 @@
 #define WVTNNGB DESNNGB // 145 for WC2 that equals WC6
 
 #define TREEBUILDFREQUENCY 1
-#define NUMITER 512
+#define NUMITER 64
 #define ERRDIFF_LIMIT 0.01
 
 int Find_ngb_simple(const int ipart,  const float hsml, int *ngblist);
@@ -79,16 +79,16 @@ void Regularise_sph_particles()
 
 		errDiff = (errLast - errMean) / errMean;
 
-       	printf("   #%02d: Err max=%3g cur=%03g last=%03g diff=%03g step=%g\n", 
-				it, errMax, errMean, errLast, errDiff, step); 
+       	printf("   #%02d: Err max=%3g mean=%03g last mean=%03g diff=%03g"
+				" step=%g\n", it, errMax, errMean, errLast, errDiff, step); 
 
 		if (errDiff < ERRDIFF_LIMIT && it > 25) 
 			break;
 
-		if ((errDiff < 0) && (errDiffLast < 0))
+		if ((errDiff < 0) && (errDiffLast < 0) && (it > 5))
 			break;
 
-		if (errDiff < 0.01)
+		if (errDiff < 0.01 && (it > 5)) // force convergence
 			step *= 0.9;
 
 		errLast = errMean;
@@ -238,7 +238,7 @@ float Global_density_model(const int ipart)
 	//		continue;
 
 		double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0, 
-				Halo[i].Rcore, Halo[i].Rcut);
+				Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
 
 		if (rho_i > rho)
 			rho = rho_i;

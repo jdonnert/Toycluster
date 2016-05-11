@@ -51,7 +51,7 @@ static void set_magnetic_vector_potential()
 			double r2 = dx*dx + dy*dy + dz*dz;
 
 			double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0, 
-									Halo[i].Rcore, Halo[i].Rcut);
+						Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
 
 			double A = pow(rho_i/Halo[i].Rho0, Param.Bfld_Eta);
 

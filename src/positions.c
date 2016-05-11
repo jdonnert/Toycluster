@@ -167,7 +167,7 @@ static void fill_mass_profile_table(const int i)
         r[j] = pow(10,j*step) - 1;
 
 	    Mass_profile_table[j] = Mass_profile(r[j], Halo[i].Rho0, 
-					Halo[i].Rcore, Halo[i].Rcut);
+					Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
     }
 
 	for (int j = 0; j < NTABLE; j++)
@@ -420,7 +420,7 @@ int Halo_containing(const int type, const float x, const float y, const float z)
 				 + p2(z - Halo[j].D_CoM[2]));
 
 			double rho_gas = Gas_density_profile(r, Halo[j].Rho0, 
-												 Halo[j].Rcore, Halo[j].Rcut);
+							Halo[j].Rcore, Halo[j].Rcut,Halo[j].Have_Cuspy);
 
        		if ( (rho_gas > rho_max) && (r < Halo[j].R_Sample[0]) ) {
 			

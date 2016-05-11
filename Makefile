@@ -3,10 +3,12 @@ SHELL = /bin/bash
 ## OPTIONS  ##
 OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
 
-#OPT     += -DPARABOLA       # merge in a parabula
+#OPT     += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
 OPT 	+= -DZERO_ENERGY_ORBIT_FRACTION=0.0 # fraction of zero energy orbit in vel 
+
+OPT	+= -DDOUBLE_BETA_COOL_CORES
 
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 

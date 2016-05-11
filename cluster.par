@@ -5,11 +5,11 @@ Output_file ./IC_single_0   % Base name
 Ntotal      2000000  % Total Number of Particles in R200
 Mtotal      1e5   % Total Mass in Code Units
 
-Mass_Ratio  0.33333       % set =0 for single cluster
+Mass_Ratio  0       % set =0 for single cluster
 
 ImpactParam 0
 
-Cuspy       0      % Use cuspy model (rc /= 10)
+Cuspy       1      % Use cuspy model (rc /= 10)
 
 Redshift	0.87
 
@@ -49,4 +49,9 @@ SubFirstPos2 0
 SubFirstVel0 0
 SubFirstVel1 0
 SubFirstVel2 0
+
+%% -DDOUBLE_BETA_COOL_CORES Options
+
+Rho0_Fac	100	% increase in Rho0
+Rc_Fac		10	% decrease in Rcore
 

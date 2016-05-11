@@ -97,6 +97,10 @@ extern struct Parameters{
 	double SubFirstPos[3];
 	double SubFirstVel[3];
 #endif
+#ifdef DOUBLE_BETA_COOL_CORES
+	double Rho0_Fac;
+	double Rc_Fac;
+#endif
 } Param;
 
 extern struct SubhaloData {

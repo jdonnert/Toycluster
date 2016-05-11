@@ -566,29 +566,20 @@ double Mass_profile(const double r, const double rho0, const double rc,
 	const double rc2 = p2(rc);
 	const double rcut2 = p2(rcut);
 
-	/*double Mr = p2(rc) * p2(rcut) / (p2(rcut) - p2(rc))  // 2nd order cut
-		* (rcut*atan(r/rcut) - rc*atan(r/rc)); 
-	
-	double Mr = rc2*rcut2*rcut/6/(rc2*rc2*rc2 + rcut2*rcut2*rcut2) * 
-		(2*p2(rc2)*log(p3(rcut) + p3(r)) + rc2*rcut2 * log(rcut2 - rcut*r + r2)
-		 - 2*rc2*rcut2 * log(rcut + r) 
-		 + 2*sqrt(3)*rcut2*(rc2 + rcut2) * atan((2*r-rcut)/sqrt(3)/rcut)
-		 - 3 * rc2*rc2*log(rc2 + r2) - 6*rc*rcut2*rcut * atan(r/rc)
-		 + 2*rcut2*rcut2 * log(rcut + r) 
-		 - rcut2*rcut2*log(rcut2 - rcut*r + r2));*/ // 3rd order
-
 	double Mr = rho0 * rc2*rcut2*rcut/(8*(p2(rcut2)+p2(rc2))) * // fourth order
 		( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2) 
 								- log(rcut2 + sqrt2*rcut*r+r2)) 
 				   - 2 * (rc2 + rcut2) * atan(1 - sqrt2*r/rcut) 
 				   + 2 * (rc2 + rcut2) * atan(sqrt2 * r/rcut + 1))
 		  - 8 * rc * rcut * atan(r/rc)); 
-
-#ifdef DOUBLE_BETA_COOL_CORES
 		
+#ifdef DOUBLE_BETA_COOL_CORES
+
 	double rc_cc = rc / Param.Rc_Fac;
 	double rc2_cc = p2(rc_cc);
 	double rho0_cc = rho0 * Param.Rho0_Fac;
+	
+	double Mr_cc = 0;
 
 	if (Is_Cuspy)
 		Mr += rho0_cc * rc2_cc*rcut2*rcut/(8*(p2(rcut2)+p2(rc2_cc))) * 

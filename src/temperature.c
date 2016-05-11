@@ -70,7 +70,7 @@ double Internal_Energy_Profile(const int i, const double d)
 
 #ifdef DOUBLE_BETA_COOL_CORES
 	
-	rc *= 2/Param.Rc_Fac; // pretend its still a single beta model
+	rc /= Param.Rc_Fac; // pretend its still a single beta model
 	rho0 *= Param.Rho0_Fac;
 
 #endif

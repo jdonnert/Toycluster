@@ -169,7 +169,7 @@ static void setup_internal_energy_profile(const int i)
 
 		//printf("%d %g %g \n", j, r, u_integrant(r, (void *)&i ) );
 		
-		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-2, 2*TABLESIZE, 
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-3, 2*TABLESIZE, 
 				GSL_INTEG_GAUSS41, gsl_workspace, &u_table[j], &error);
 
 		double rho0 = Halo[i].Rho0;

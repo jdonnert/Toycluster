@@ -29,6 +29,7 @@ void Reassign_particles_to_halos();
 extern void Smooth_SPH_quantities();
 
 double Internal_Energy_Profile(const int,const double);
+double Internal_Energy_Profile_Analytic(const int i, const double d) ;
 
 
 double Concentration_parameter(const int);

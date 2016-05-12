@@ -20,9 +20,7 @@ void Make_temperatures()
 
 		fflush(stdout);
 
-#ifdef DOUBLE_BETA_COOL_CORES
 		setup_internal_energy_profile(i);
-#endif
 
 		#pragma omp parallel for
         for (int ipart = 0; ipart < Halo[i].Npart[0]; ipart++) {
@@ -34,8 +32,8 @@ void Make_temperatures()
             double r = sqrt(dx*dx + dy*dy + dz*dz);
 
             double u = Internal_Energy_Profile(i, r);
-
-
+			//double u_ana = Internal_Energy_Profile_Analytic(i, r);
+			
 			double u_main = 0;
 
 			if (i > 0 ) {
@@ -53,13 +51,11 @@ void Make_temperatures()
 			Halo[i].SphP[ipart].U = u;
 		}
     }
-
-    printf("done\n\n"); fflush(stdout);
+    
+	printf("done\n\n"); fflush(stdout);
 
     return;
 }
-
-#ifndef DOUBLE_BETA_COOL_CORES 
 
 /* 
  * Standard analytical temperature profile from Donnert et al. 2016.
@@ -84,7 +80,7 @@ static double F2(const double r, const double rc)
     return p2(atan(r/rc)) / (2*rc) + atan(r/rc)/r;
 }
 
-double Internal_Energy_Profile(const int i, const double d) 
+double Internal_Energy_Profile_Analytic(const int i, const double d) 
 {
     const double G = Grav/p3(Unit.Length)*Unit.Mass*p2(Unit.Time);
 		
@@ -99,8 +95,6 @@ double Internal_Energy_Profile(const int i, const double d)
                 + 4*pi*rho0*p3(rc) * (F2(rmax, rc) - F2(d, rc) ) );
 	return u;
 }
-
-#else // DOUBLE_BETA_COOL_CORES
 
 /* 
  * Numerical solution for all kinds of gas densities. We spline interpolate 
@@ -125,7 +119,7 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 
 	double rho0 = Halo[i].Rho0;
 	double rc = Halo[i].Rcore;
-	double rcut = Halo[i].Rcut;
+	double rcut = Param.Boxsize;
 	int is_cuspy = Halo[i].Have_Cuspy;
 	double a = Halo[i].A_hernq;
 	double Mdm = Halo[i].Mass[1];
@@ -145,7 +139,7 @@ static void setup_internal_energy_profile(const int i)
 
 	double u_table[TABLESIZE] = { 0 }, r_table[TABLESIZE] = { 0 };
 
-	double rmin = 1;
+	double rmin = 0.1;
 	double rmax = Param.Boxsize * sqrt(3);
 	double dr = ( log(rmax/rmin) ) / (TABLESIZE-1);
 
@@ -174,7 +168,7 @@ static void setup_internal_energy_profile(const int i)
 
 		double rho0 = Halo[i].Rho0;
 		double rc = Halo[i].Rcore;
-		double rcut = Halo[i].Rcut;
+		double rcut = Param.Boxsize;
 		int is_cuspy = Halo[i].Have_Cuspy;
 	
 		double rho_gas = Gas_density_profile(r, rho0, rc, rcut, is_cuspy);
@@ -193,7 +187,3 @@ static void setup_internal_energy_profile(const int i)
 
 	return ;
 }
-
-
-#endif // DOUBLE_BETA_COOL_CORES
-

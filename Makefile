@@ -8,7 +8,7 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
 OPT 	+= -DZERO_ENERGY_ORBIT_FRACTION=0.0 # fraction of zero energy orbit in vel 
 
-#OPT	+= -DDOUBLE_BETA_COOL_CORES
+OPT	+= -DDOUBLE_BETA_COOL_CORES
 
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 

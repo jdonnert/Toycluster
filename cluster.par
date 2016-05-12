@@ -9,7 +9,7 @@ Mass_Ratio  0       % set =0 for single cluster
 
 ImpactParam 0
 
-Cuspy       0      % Use cuspy model (rc /= 10)
+Cuspy       1      % Use cuspy model (rc /= 10)
 
 Redshift	0.87
 

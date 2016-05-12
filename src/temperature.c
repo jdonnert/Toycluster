@@ -1,7 +1,9 @@
+#include <gsl/gsl_integration.h>
+#include <gsl/gsl_spline.h>
+
 #include "globals.h"
 
-static double F1(const double, const double, const double), 
-              F2(const double, const double);
+static void setup_internal_energy_profile(const int i);
 
 void Make_temperatures()
 {
@@ -18,8 +20,12 @@ void Make_temperatures()
 
 		fflush(stdout);
 
-#pragma omp parallel
-        for (size_t ipart = 0; ipart < Halo[i].Npart[0]; ipart++) {
+#ifdef DOUBLE_BETA_COOL_CORES
+		setup_internal_energy_profile(i);
+#endif
+
+		#pragma omp parallel for
+        for (int ipart = 0; ipart < Halo[i].Npart[0]; ipart++) {
 
             float dx = Halo[i].Gas[ipart].Pos[0] - Halo[i].D_CoM[0] - boxhalf;
             float dy = Halo[i].Gas[ipart].Pos[1] - Halo[i].D_CoM[1] - boxhalf;
@@ -28,6 +34,7 @@ void Make_temperatures()
             double r = sqrt(dx*dx + dy*dy + dz*dz);
 
             double u = Internal_Energy_Profile(i, r);
+
 
 			double u_main = 0;
 
@@ -43,8 +50,6 @@ void Make_temperatures()
 				u_main = Internal_Energy_Profile(0, r);
 			}
 			
-			//u = fmax(u, u_main);
-
 			Halo[i].SphP[ipart].U = u;
 		}
     }
@@ -54,32 +59,12 @@ void Make_temperatures()
     return;
 }
 
+#ifndef DOUBLE_BETA_COOL_CORES 
+
 /* 
-* to avoid negative temperatures we define rmax*sqrt3 as outer radius
-*/
-
-double Internal_Energy_Profile(const int i, const double d)
-{
-    const double G = Grav/p3(Unit.Length)*Unit.Mass*p2(Unit.Time);
-		
-    double rho0 = Halo[i].Rho0; 
-    const double a = Halo[i].A_hernq;
-    double rc = Halo[i].Rcore;
-    double rmax = Param.Boxsize; // "open" T boundary
-    double Mdm = 1.10 * Halo[i].Mass[1];
-
-#ifdef DOUBLE_BETA_COOL_CORES
-	
-	rc /= Param.Rc_Fac; // pretend its still a single beta model
-	rho0 *= Param.Rho0_Fac;
-
-#endif
-
-	double u = G / ( (adiabatic_index-1) ) * ( 1 + p2(d/rc) ) *
-                ( Mdm * (F1(rmax, rc, a) - F1(d, rc, a))
-                + 4*pi*rho0*p3(rc) * (F2(rmax, rc) - F2(d, rc) ) );
-	return u;
-}
+ * Standard analytical temperature profile from Donnert et al. 2016.
+ * To avoid negative temperatures we define rmax*sqrt3 as outer radius
+ */
 
 static double F1(const double r, const double rc, const double a)
 {
@@ -98,3 +83,117 @@ static double F2(const double r, const double rc)
 {
     return p2(atan(r/rc)) / (2*rc) + atan(r/rc)/r;
 }
+
+double Internal_Energy_Profile(const int i, const double d) 
+{
+    const double G = Grav/p3(Unit.Length)*Unit.Mass*p2(Unit.Time);
+		
+    double rho0 = Halo[i].Rho0; 
+    double a = Halo[i].A_hernq;
+    double rc = Halo[i].Rcore;
+    double rmax = Param.Boxsize; // "open" T boundary
+    double Mdm = 1.10 * Halo[i].Mass[1];
+
+	double u = G / ( (adiabatic_index-1) ) * ( 1 + p2(d/rc) ) *
+                ( Mdm * (F1(rmax, rc, a) - F1(d, rc, a))
+                + 4*pi*rho0*p3(rc) * (F2(rmax, rc) - F2(d, rc) ) );
+	return u;
+}
+
+#else // DOUBLE_BETA_COOL_CORES
+
+/* 
+ * Numerical solution for all kinds of gas densities. We spline interpolate 
+ * a table of solutions for speed. We have to solve the hydrostatic equation
+ * (eq. 9 in Donnert 2014).
+ */
+
+#define TABLESIZE 1024
+
+static gsl_spline *U_Spline = NULL;
+static gsl_interp_accel *U_Acc = NULL;
+#pragma omp threadprivate(U_Spline, U_Acc)
+
+double Internal_Energy_Profile(const int i, const double r)
+{
+	return gsl_spline_eval(U_Spline, r, U_Acc);;
+}
+
+static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
+{
+	int i = *((int *) param);
+
+	double rho0 = Halo[i].Rho0;
+	double rc = Halo[i].Rcore;
+	double rcut = Halo[i].Rcut;
+	int is_cuspy = Halo[i].Have_Cuspy;
+	double a = Halo[i].A_hernq;
+	double Mdm = Halo[i].Mass[1];
+
+	double rho_gas = Gas_density_profile(r, rho0, rc, rcut, is_cuspy);
+	double Mr_Gas = Mass_profile(r, rho0, rc, rcut, is_cuspy);
+	double Mr_DM = 1.1*Mdm * r*r/p2(r+a);
+
+	return rho_gas /(r*r) * (Mr_Gas + Mr_DM);
+}
+
+static void setup_internal_energy_profile(const int i)
+{
+    double G = Grav/p3(Unit.Length)*Unit.Mass*p2(Unit.Time);
+
+	gsl_function gsl_F = { 0 };
+
+	double u_table[TABLESIZE] = { 0 }, r_table[TABLESIZE] = { 0 };
+
+	double rmin = 1;
+	double rmax = Param.Boxsize * sqrt(3);
+	double dr = ( log(rmax/rmin) ) / (TABLESIZE-1);
+
+	#pragma omp parallel 
+	{
+	
+	gsl_integration_workspace *gsl_workspace = NULL;
+	gsl_workspace = gsl_integration_workspace_alloc(2*TABLESIZE);
+	
+	#pragma omp for
+	for (int j = 1; j < TABLESIZE;  j++) {
+	
+		double error = 0;
+
+		double r = rmin * exp(dr * j);
+		
+		r_table[j] = r;
+
+		gsl_F.function = &u_integrant;
+		gsl_F.params = (void *) &i;
+
+		//printf("%d %g %g \n", j, r, u_integrant(r, (void *)&i ) );
+		
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-2, 2*TABLESIZE, 
+				GSL_INTEG_GAUSS41, gsl_workspace, &u_table[j], &error);
+
+		double rho0 = Halo[i].Rho0;
+		double rc = Halo[i].Rcore;
+		double rcut = Halo[i].Rcut;
+		int is_cuspy = Halo[i].Have_Cuspy;
+	
+		double rho_gas = Gas_density_profile(r, rho0, rc, rcut, is_cuspy);
+
+		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
+	}
+
+	gsl_integration_workspace_free(gsl_workspace);
+	
+	U_Acc = gsl_interp_accel_alloc();
+
+	U_Spline = gsl_spline_alloc(gsl_interp_cspline, TABLESIZE);
+	gsl_spline_init(U_Spline, r_table, u_table, TABLESIZE);
+	
+	} // omp parallel
+
+	return ;
+}
+
+
+#endif // DOUBLE_BETA_COOL_CORES
+

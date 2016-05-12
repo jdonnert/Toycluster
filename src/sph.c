@@ -12,13 +12,11 @@ static inline float sph_kernel_derivative_WC6(const float r, const float h);
 
 extern void Find_sph_quantities() 
 {
-	//printf("Finding SPH quantities ... "); fflush(stdout);
-
 	Sort_Particles_By_Peano_Key();	
 	
 	Build_Tree();	
 
-#pragma omp parallel for shared(SphP, P) \
+	#pragma omp parallel for shared(SphP, P) \
         schedule(dynamic, Param.Npart[0]/Omp.NThreads/64)
     for (size_t ipart = 0; ipart<Param.Npart[0]; ipart++) {  
         
@@ -38,10 +36,8 @@ extern void Find_sph_quantities()
 		for (;;) {
 
         	int ngblist[NGBMAX] = { 0 };
-//      	int ngblist2[NGBMAX] = { 0 };
 
            	int ngbcnt = Find_ngb_tree(ipart, hsml, ngblist); 
-//           	int ngbcnt2 = Find_ngb_simple(ipart, hsml, ngblist2); 
 
 			if (ngbcnt == NGBMAX) { // prevent overflow of ngblist
 	
@@ -67,8 +63,6 @@ extern void Find_sph_quantities()
         SphP[ipart].VarHsmlFac = varHsmlFac;
 
     }
-
-	//printf("done \n"); fflush(stdout);
 
     return;
 }
@@ -146,7 +140,7 @@ extern bool Find_hsml(const int ipart, const int *ngblist, const int ngbcnt,
             dRhodHsml += -Param.Mpart[0] * ( 3/hsml*wk + r/hsml * dwk );
         }
 
-       if (it > 128) // not enough neighbours ?
+       if (it > 128) // not enough neighbours ? -> hard exit 
             break;
         
        double ngbDev = fabs(wkNgb - DESNNGB);
@@ -223,8 +217,9 @@ extern void Bfld_from_rotA_SPH()
         double rho_i = SphP[ipart].Rho;
 
         double pos_i[3] = {P[ipart].Pos[0], P[ipart].Pos[1], P[ipart].Pos[2]};
+
 		double apot_i[3] = {SphP[ipart].Apot[0], SphP[ipart].Apot[1], 
-			SphP[ipart].Apot[2]};
+							SphP[ipart].Apot[2]};
 
 		double bfld[3] = { 0 };
 

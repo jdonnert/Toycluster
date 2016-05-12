@@ -34,20 +34,6 @@ void Make_temperatures()
             double u = Internal_Energy_Profile(i, r);
 			//double u_ana = Internal_Energy_Profile_Analytic(i, r);
 			
-			double u_main = 0;
-
-			if (i > 0 ) {
-	         
-            	dx = Halo[i].Gas[ipart].Pos[0] - Halo[0].D_CoM[0] - boxhalf;
-            	dy = Halo[i].Gas[ipart].Pos[1] - Halo[0].D_CoM[1] - boxhalf;
-            	dz = Halo[i].Gas[ipart].Pos[2] - Halo[0].D_CoM[2] - boxhalf;
-				
-            	r = sqrt(dx*dx + dy*dy + dz*dz);
-
-			//	if (r < Halo[0].R200)
-				u_main = Internal_Energy_Profile(0, r);
-			}
-			
 			Halo[i].SphP[ipart].U = u;
 		}
     }

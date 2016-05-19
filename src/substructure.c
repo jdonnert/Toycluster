@@ -331,13 +331,13 @@ static void set_subhalo_properties(const int i)
 		Halo[i].Is_Stripped  = false;
 		
 		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], 
-				Halo[i].Rho0, rc, Halo[i].Rcut);
+				Halo[i].Rho0, rc, Halo[i].Rcut,false);
 	}
 
 #ifdef ADD_THIRD_SUBHALO
 	if (i == Sub.First)
 		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], 
-				Halo[i].Rho0, rc, Halo[i].Rcut);
+				Halo[i].Rho0, rc, Halo[i].Rcut, false);
 #endif
 
 	Halo[i].Mtotal = Halo[i].Mass[0] + Halo[i].Mass[1];

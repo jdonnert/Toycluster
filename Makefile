@@ -12,10 +12,10 @@ OPT	+= -DDOUBLE_BETA_COOL_CORES
 
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
-#OPT	+= -DSUBSTRUCTURE	# add substructure
-#OPT    += -DSUBHOST=1		# host halos
-#OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
-#OPT += -DREPORTSUBHALOS		# print info about all subhaloes
+OPT	+= -DSUBSTRUCTURE	# add substructure
+OPT    += -DSUBHOST=1		# host halos
+OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
+OPT += -DREPORTSUBHALOS		# print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
 #OPT  += -DTHIRD_HALO_ONLY 

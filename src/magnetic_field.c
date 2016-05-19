@@ -98,7 +98,8 @@ static void normalise_magnetic_field()
 		SphP[ipart].Bfld[1] *= norm;
 		SphP[ipart].Bfld[2] *= norm;
 
-		double B2 = p2(SphP[ipart].Bfld[0]) + p2(SphP[ipart].Bfld[1]) + p2(SphP[ipart].Bfld[2]);
+		double B2 = p2(SphP[ipart].Bfld[0]) + p2(SphP[ipart].Bfld[1]) + 
+					p2(SphP[ipart].Bfld[2]);
 	
 		float x = P[ipart].Pos[0] - boxhalf,
 			  y = P[ipart].Pos[1] - boxhalf,
@@ -107,10 +108,11 @@ static void normalise_magnetic_field()
 		int i = Halo_containing(ipart,x,y,z);
 		
 		double bmax = BMAX;
-		if (i > 1)
+
+		if (i > 1) // subhaloes
 			bmax = 2e-6;
 
-		if ((B2 > p2(bmax)) && (i > 1)) {
+		if ((B2 > p2(bmax))) {
 
 			double B = sqrt(B2);
 

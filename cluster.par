@@ -8,6 +8,7 @@ Mtotal      1e5   % Total Mass in Code Units
 Mass_Ratio  0       % set =0 for single cluster
 
 ImpactParam 0
+ZeroEOrbitFrac 0
 
 Cuspy       1      % Use cuspy model (rc /= 10)
 

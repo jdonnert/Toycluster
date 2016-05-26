@@ -265,8 +265,8 @@ void Setup()
         Param.VelMerger[1] = -Param.Mtot200/Halo[1].Mtotal200
             * Param.VelMerger[0];
 		
-		Param.VelMerger[0] *= ZERO_ENERGY_ORBIT_FRACTION;
-		Param.VelMerger[1] *= ZERO_ENERGY_ORBIT_FRACTION;
+		Param.VelMerger[0] *= Param.Zero_Energy_Orbit_Fraction;
+		Param.VelMerger[1] *= Param.Zero_Energy_Orbit_Fraction;
 #endif
 
         Halo[0].BulkVel[0] = Halo[0].BulkVel[1] = Halo[0].BulkVel[2] = 0;
@@ -287,7 +287,7 @@ void Setup()
             "   Impact Parameter    = %g kpc\n"
             "   CoM Impact of <0>   = %g kpc\n"
             "   CoM Impact of <1>   = %g kpc\n\n"
-			,ZERO_ENERGY_ORBIT_FRACTION
+			,Param.Zero_Energy_Orbit_Fraction
             ,d_clusters, Halo[0].D_CoM[0], Halo[1].D_CoM[0]
             , Param.VelMerger[0], Param.VelMerger[1]
             ,Param.Impact_Param, Halo[0].D_CoM[1]

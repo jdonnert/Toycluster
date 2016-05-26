@@ -459,7 +459,7 @@ void set_subhalo_bulk_velocities()
 		double U = Internal_Energy_Profile(0, r);
 		double cs = sqrt(U * adiabatic_index * (adiabatic_index-1));
 
-		v *= ZERO_ENERGY_ORBIT_FRACTION_SUB;
+		v *= Param.Zero_Energy_Orbit_Fraction;
 
         Halo[i].BulkVel[0] = (float) (v * sin(theta) * cos(phi));
         Halo[i].BulkVel[1] = (float) (v * sin(theta) * sin(phi));

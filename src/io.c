@@ -332,6 +332,10 @@ void Read_param_file(char *filename)
 	addr[nt] = &Param.Impact_Param;
 	id[nt++] = REAL;
     
+    strcpy(tag[nt], "ZeroEOrbitFrac");
+	addr[nt] = &Param.Zero_Energy_Orbit_Fraction;
+	id[nt++] = REAL;
+
     strcpy(tag[nt], "Cuspy");
 	addr[nt] = &Param.Cuspy;
 	id[nt++] = INT;

@@ -92,6 +92,7 @@ extern struct Parameters{
     double VelMerger[2];            // Merging velocity
     int Nhalos;                     // Number of halos, incl. substructure
 	double GravSofteningLength;		
+	double Zero_Energy_Orbit_Fraction;
 #ifdef ADD_THIRD_SUBHALO
 	double SubFirstMass;
 	double SubFirstPos[3];

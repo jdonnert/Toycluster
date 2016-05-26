@@ -108,7 +108,7 @@ void Setup_Substructure()
  * this sets the DM mass in R_sample, not R200 */
 static void set_subhalo_masses(const double mass_fraction)
 {	
-	const double mass_limit = Halo[0].Mass200[1] * mass_fraction;
+	const double mass_limit = Halo[SUBHOST].Mass200[1] * mass_fraction;
 
 	const double qmax = subhalo_mass_function(MIN_SUBHALO_MASS) 
 		/ MIN_SUBHALO_MASS;
@@ -173,7 +173,8 @@ static void set_subhalo_positions(int i)
 
 	double q = erand48(Omp.Seed);
 
-	double r = 1.2 * Halo[SUBHOST].R200 * inverted_subhalo_number_density_profile(q);
+	double r = 1.2 * Halo[SUBHOST].R200 * 
+		inverted_subhalo_number_density_profile(q);
 
 	float theta = acos(2 *  erand48(Omp.Seed) - 1);
    	float phi = 2*pi * erand48(Omp.Seed);
@@ -350,7 +351,7 @@ static void set_subhalo_particle_numbers()
 {
 	const double mDM = Param.Mpart[1];
 	const double mGas = Param.Mpart[0];
-
+	
 	for (int i = Sub.First; i < Param.Nhalos; i++) {
 	
 		int nDM = round(Halo[i].Mass[1] / mDM );
@@ -488,9 +489,11 @@ static double inverted_subhalo_number_density_profile(const double q)
 	return r;
 }
 
-static double nfw_scale_radius(const double c_nfw, const double M_t, const double r)
+static double nfw_scale_radius(const double c_nfw, const double M_t, 
+		const double r)
 { // Springel+ 2008 eq 7-9
-	double left = 0, right = Halo[SUBHOST].R_Sample[0], rs = 0, delta = DBL_MAX;	
+	double left = 0, right = Halo[SUBHOST].R_Sample[0], 
+		   rs = 0, delta = DBL_MAX;	
 
 	while (fabs(delta) > 1e-3) { // find root
 		

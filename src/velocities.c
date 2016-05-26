@@ -234,7 +234,7 @@ static void calc_distribution_function_table(int iCluster)
 
 		fE[i] /= sqrt8 * pi * pi;
 	
-	//	printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i], 
+	//printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i], 
 	//			hernquist_distribution_func(iCluster, E[i]), error/fE[i]);
 	}
 
@@ -252,14 +252,18 @@ static void calc_distribution_function_table(int iCluster)
 	fE_params.acc = gsl_interp_accel_alloc();
 	fE_params.spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
 	}
-
+	
 	for (int i = 0; i < NTABLE; i++) {
 		
 		x[i] = E[NTABLE-i-1];
 		
 		y[i] = fE[NTABLE-i-1];
-	}
 
+	}
+	for (int i = 1; i < NTABLE; i++)
+		if (x[i-1] >= x[i] )
+			x[i] = x[i-1]*1.01;
+	
 	#pragma omp parallel
 	gsl_spline_init(fE_params.spline, x, y, NTABLE);
 	

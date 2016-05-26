@@ -11,7 +11,7 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
 OPT	+= -DSUBSTRUCTURE	# add substructure
-OPT    += -DSUBHOST=1		# host halos
+OPT += -DSUBHOST=1		# host halos
 OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
 OPT += -DREPORTSUBHALOS		# print info about all subhaloes
 

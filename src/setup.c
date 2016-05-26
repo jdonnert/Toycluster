@@ -396,8 +396,12 @@ void Shift_Origin()
     const float boxsize = Param.Boxsize;
     const float boxHalf = boxsize / 2;
 
+	printf("Shift Origin "); fflush(stdout);
+
     for (int i = 0; i < Param.Nhalos; i++) { // shift clusters away from 0
         
+		printf("%d",i); fflush(stdout);
+
         float dx = Halo[i].D_CoM[0];
         float dy = Halo[i].D_CoM[1];
         float dz = Halo[i].D_CoM[2];
@@ -430,6 +434,8 @@ void Shift_Origin()
             Halo[i].Gas[ipart].Vel[2] += vz;
         }
     }
+
+	printf("done \n");
     
 #pragma omp parallel for // shift 0 to bottom left corner, wrap around box
 	for (size_t ipart=0; ipart<Param.Ntotal; ipart++) {
@@ -456,7 +462,7 @@ void Shift_Origin()
         while (P[ipart].Pos[2] < 0)
             P[ipart].Pos[2] += boxsize;
     }
-
+	
     return ;
 }
 

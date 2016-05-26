@@ -33,9 +33,10 @@ void Setup_Substructure()
 		Sub.First = 2;
 
 	Sub.MassFraction = subhalo_mass_fraction(); 
+printf("IN \n"); fflush(stdout);
 
 	set_subhalo_masses(Sub.MassFraction);
-
+printf("OUT \n"); fflush(stdout);
 	for (int i = Sub.First; i < Param.Nhalos; i++) { 
 
 		printf("."); fflush(stdout);
@@ -122,16 +123,22 @@ static void set_subhalo_masses(const double mass_fraction)
 		for (;;) { // rejection sampling
 
 			mDM = MIN_SUBHALO_MASS + erand48(Omp.Seed) * 
-				(Halo[0].Mass200[1] - MIN_SUBHALO_MASS);
+				(Halo[SUBHOST].Mass200[1] - MIN_SUBHALO_MASS);
 			
 			q = subhalo_mass_function(mDM) / mDM;
-
+			
 			double lower_bound = qmax * erand48(Omp.Seed);
+
+			if (mass_limit - Sub.Mtotal < MIN_SUBHALO_MASS ){
+			
+				mDM = MIN_SUBHALO_MASS;
+				break;
+			}
 
 			if (Sub.Mtotal + mDM > 1.05 * mass_limit)
 				continue;
-
-			if (mDM > 0.1 * Sub.MassFraction * Halo[0].Mass[1]) // too big
+			
+			if (mDM > 0.1 * Sub.MassFraction * Halo[SUBHOST].Mass[1]) // too big
 				continue;
 
 			if (q >= lower_bound)

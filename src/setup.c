@@ -400,7 +400,7 @@ void Shift_Origin()
 
     for (int i = 0; i < Param.Nhalos; i++) { // shift clusters away from 0
         
-		printf("%d",i); fflush(stdout);
+		printf("."); fflush(stdout);
 
         float dx = Halo[i].D_CoM[0];
         float dy = Halo[i].D_CoM[1];

@@ -50,12 +50,12 @@ void Make_velocities()
 		
 		/* peculiar velocity */
 		calc_distribution_function_table(i); 
-
+		
 		double M = Halo[i].Mtotal;
 
 		double dCoM[3] = {Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
 
-		//#pragma omp parallel for schedule(dynamic) 
+		#pragma omp parallel for schedule(dynamic) 
         for (size_t ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM
 
 			double dx = Halo[i].DM[ipart].Pos[0] - dCoM[0] - boxhalf;
@@ -71,7 +71,9 @@ void Make_velocities()
 
             double v = 0;
             
-			for (;;) { // Ascasibar+ 2005, Press+ 1992
+			int j = 0;
+
+			for (j = 0; j < 90000; j++) { // Ascasibar+ 2005, Press+ 1992
 
                 double lower_bound = qmax * erand48(Omp.Seed);
 
@@ -85,6 +87,9 @@ void Make_velocities()
 					break;
             }
     
+			if (j == 90000)
+				v = 0;
+
             double theta = acos(2 *  erand48(Omp.Seed) - 1);
             double phi = 2*pi * erand48(Omp.Seed);
         

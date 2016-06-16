@@ -32,5 +32,5 @@ double T2U(double T)
 
 double Density(float rho)
 {
-    return( ((double)rho) * Unit.Mass / p3(Unit.Length) * p2(0.7) );
+    return( ((double)rho) * Unit.Mass / p3(Unit.Length) );
 }

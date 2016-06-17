@@ -108,7 +108,7 @@ void Setup()
                , Halo[i].C_nfw, Halo[i].R200*Unit.Length/kpc2cgs
                , Halo[i].A_hernq*Unit.Length/kpc2cgs
                , Density(Halo[i].Rho0), Halo[i].Rho0
-			   , Density(Halo[i].Rho0) * 0.6 * m_p 
+			   , Density(Halo[i].Rho0) / (0.6 * m_p) 
 			   , Halo[i].Rcore);
 
 #ifdef DOUBLE_BETA_COOL_CORES

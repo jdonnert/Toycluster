@@ -393,7 +393,13 @@ int Halo_containing(const int type, const float x, const float y, const float z)
 
 	if (type > 0) { // DM
 
-		for (int j = 1; j < Param.Nhalos; j++) { // 0 is std
+		float r = sqrt(p2(x - Halo[1].D_CoM[0]) + p2(y - Halo[1].D_CoM[1])  
+				 + p2(z - Halo[1].D_CoM[2]));
+
+		if ( (r < Halo[1].R_Sample[1]) && (x > 0) )
+			i = 1;
+
+		for (int j = Sub.First; j < Param.Nhalos; j++) { // 0 is std
 
    	   		float r = sqrt(p2(x - Halo[j].D_CoM[0]) + p2(y - Halo[j].D_CoM[1])  
 				 + p2(z - Halo[j].D_CoM[2]));
@@ -402,8 +408,7 @@ int Halo_containing(const int type, const float x, const float y, const float z)
 
 				i = j;  // we are in the sampling radius
 
-				if (j >= Sub.First)
-					break;
+				break;
 			}
 		}
 

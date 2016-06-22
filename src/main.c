@@ -28,8 +28,8 @@ int main(int argc, char *argv[])
     Assert(argc == 2, "Usage : ./Toycluster $parameterfile\n");
 	
     Read_param_file(argv[1]);
-
-    Set_units();
+    
+	Set_units();
     
     Set_cosmology();
     

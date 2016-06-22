@@ -348,6 +348,10 @@ void Read_param_file(char *filename)
 	addr[nt] = &Param.Bfld_Eta;
 	id[nt++] = REAL;
 
+	strcpy(tag[nt], "bf");
+	addr[nt] = &Cosmo.Baryon_Fraction;
+	id[nt++] = REAL;
+
     /* System of Units */
     strcpy(tag[nt], "UnitLength_in_cm");
 	addr[nt] = &Unit.Length;

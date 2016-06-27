@@ -4,8 +4,8 @@
 
 #define JUMPTOLERANCE (0.05)
 
-static float sph_kernel_WC6(float, float);
-static float sph_kernel_derivative_WC6(float, float);
+static inline float sph_kernel_M4(const float r, const float h);
+static inline float sph_kernel_derivative_M4(const float r, const float h);
 
 static inline float sph_kernel_WC6(const float r, const float h);
 static inline float sph_kernel_derivative_WC6(const float r, const float h);
@@ -42,6 +42,13 @@ extern void Find_sph_quantities()
 			if (ngbcnt == NGBMAX) { // prevent overflow of ngblist
 	
 				hsml /= 1.24;
+
+				continue;
+			}
+
+			if (ngbcnt < DESNNGB) {
+			
+				hsml *= 1.23;
 
 				continue;
 			}
@@ -130,8 +137,14 @@ extern bool Find_hsml(const int ipart, const int *ngblist, const int ngbcnt,
                     
     		double r = sqrt(r2);
 
+#ifdef SPH_CUBIC_SPLINE
+			double wk = sph_kernel_M4(r, hsml);
+			double dwk = sph_kernel_derivative_M4(r, hsml);
+#else
 		    double wk = sph_kernel_WC6(r, hsml);
 		    double dwk = sph_kernel_derivative_WC6(r, hsml);
+#endif // SPH_CUBIC_SPLINE
+
 
             wkNgb += fourpithird*wk*p3(hsml);
 
@@ -144,8 +157,8 @@ extern bool Find_hsml(const int ipart, const int *ngblist, const int ngbcnt,
             break;
         
        double ngbDev = fabs(wkNgb - DESNNGB);
-
-        if (ngbDev < NNGBDEV) {
+        
+	   if (ngbDev < NNGBDEV) {
 
             part_done = true;
 
@@ -183,7 +196,9 @@ extern bool Find_hsml(const int ipart, const int *ngblist, const int ngbcnt,
     } // for(;;)
     
     *hsml_out = (float) hsml;
+    *rho_out = (float) rho;
 
+#ifndef SPH_CUBIC_SPLINE
     if (part_done) {
     
         *dRhodHsml_out = (float) dRhodHsml;
@@ -191,8 +206,9 @@ extern bool Find_hsml(const int ipart, const int *ngblist, const int ngbcnt,
         double bias_corr = -0.0116 * pow(DESNNGB*0.01, -2.236) 
             * Param.Mpart[0] * sph_kernel_WC6(0, hsml); // WC6 (Dehnen+ 12)
     
-        *rho_out = (float) (rho + bias_corr );   
+        *rho_out += bias_corr;   
     }
+#endif
 
     return part_done;
 }
@@ -353,9 +369,13 @@ extern void Smooth_SPH_quantities()
 			if (r2 > hsml*hsml) 
                 continue ;
                 
-			float r = sqrt(r2);
+			float r = sqrtf(r2);
 
+#ifdef SPH_CUBIC_SPLINE
+			float dwk = sph_kernel_derivative_M4(r, hsml);
+#else
 			float dwk = sph_kernel_derivative_WC6(r, hsml);
+#endif // SPH_CUBIC_SPLINE
 
 			float weight = -mpart/rho_i * dwk / r  * varHsmlFac;
 
@@ -417,4 +437,30 @@ static inline float sph_kernel_derivative_WC6(const float r, const float h)
     const double t = 1-u;
 
     return 1365.0/(64*pi)/(h*h*h*h) * -22.0 *t*t*t*t*t*t*t*u*(16*u*u+7*u+1);
+}
+
+static inline float sph_kernel_M4(const float r, const float h) // cubic spline
+{
+	double wk = 0;
+   	double u = r/h;
+ 
+	if(u < 0.5) 
+		wk = (2.546479089470 + 15.278874536822 * (u - 1) * u * u);
+	else
+		wk = 5.092958178941 * (1.0 - u) * (1.0 - u) * (1.0 - u);
+	
+	return wk/p3(h);
+}
+
+static inline float sph_kernel_derivative_M4(const float r, const float h)
+{
+	double dwk = 0;
+	double u = r/h;
+  	
+   	if(u < 0.5) 
+		dwk = u * (45.836623610466 * u - 30.557749073644);
+	else
+		dwk = (-15.278874536822) * (1.0 - u) * (1.0 - u);
+   
+   return dwk/(h*h*h*h);
 }

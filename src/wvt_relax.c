@@ -10,6 +10,7 @@
 int Find_ngb_simple(const int ipart,  const float hsml, int *ngblist);
 int ngblist[NGBMAX] = { 0 }, Ngbcnt ;
 
+static inline float sph_kernel_M4(const float r, const float h);
 static inline double sph_kernel_WC2(const float r, const float h);
 static inline double sph_kernel_WC6(const float r, const float h);
 static inline float gravity_kernel(const float r, const float h);
@@ -44,7 +45,11 @@ void Regularise_sph_particles()
 
     int it = -1;
 
+#ifdef SPH_CUBIC_SPLINE
+	double step = 0.035;
+#else
 	double step = 0.0085;
+#endif
 
 	double errLast = DBL_MAX, errLastTree = DBL_MAX;
 	double errDiff = DBL_MAX, errDiffLast = DBL_MAX;
@@ -270,6 +275,19 @@ static inline double sph_kernel_WC6(const float r, const float h)
     const double t = 1-u;
 
     return 1365.0/(64*pi) *t*t*t*t*t*t*t*t*(1+8*u + 25*u*u + 32*u*u*u);
+}
+
+static inline float sph_kernel_M4(const float r, const float h) // cubic spline
+{
+	double wk = 0;
+   	double u = r/h;
+ 
+	if(u < 0.5) 
+		wk = (2.546479089470 + 15.278874536822 * (u - 1) * u * u);
+	else
+		wk = 5.092958178941 * (1.0 - u) * (1.0 - u) * (1.0 - u);
+	
+	return wk/p3(h);
 }
 
 int Find_ngb_simple(const int ipart,  const float hsml, int *ngblist)

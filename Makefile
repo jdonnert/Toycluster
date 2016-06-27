@@ -18,6 +18,8 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
 #OPT  += -DTHIRD_HALO_ONLY 
 
+OPT += -DSPH_CUBIC_SPLINE
+
 ## Target Computer ##
 ifndef SYSTYPE
 SYSTYPE := $(shell hostname)

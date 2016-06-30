@@ -9,8 +9,8 @@ void Make_temperatures()
 {
     const double boxhalf = 0.5 * Param.Boxsize;
 
-    printf("Setting temperatures "); 
-    
+    printf("Setting temperatures ");
+
     for (int i = 0; i < Param.Nhalos; i++) {
 
 		if (i < Sub.First)
@@ -33,17 +33,17 @@ void Make_temperatures()
 
             double u = Internal_Energy_Profile(i, r);
 			//double u_ana = Internal_Energy_Profile_Analytic(i, r);
-			
+
 			Halo[i].SphP[ipart].U = u;
 		}
     }
-    
+
 	printf("done\n\n"); fflush(stdout);
 
     return;
 }
 
-/* 
+/*
  * Standard analytical temperature profile from Donnert et al. 2016.
  * To avoid negative temperatures we define rmax*sqrt3 as outer radius
  */
@@ -53,7 +53,7 @@ static double F1(const double r, const double rc, const double a)
     const double rc2 = rc*rc;
     const double a2 = a*a;
 
-    double result = (a2-rc2)*atan(r/rc) - rc*(a2+rc2)/(a+r) 
+    double result = (a2-rc2)*atan(r/rc) - rc*(a2+rc2)/(a+r)
                 + a*rc * log( (a+r)*(a+r) / (rc2 + r*r) );
 
     result *= rc / p2(a2 + rc2);
@@ -66,11 +66,11 @@ static double F2(const double r, const double rc)
     return p2(atan(r/rc)) / (2*rc) + atan(r/rc)/r;
 }
 
-double Internal_Energy_Profile_Analytic(const int i, const double d) 
+double Internal_Energy_Profile_Analytic(const int i, const double d)
 {
     const double G = Grav/p3(Unit.Length)*Unit.Mass*p2(Unit.Time);
-		
-    double rho0 = Halo[i].Rho0; 
+
+    double rho0 = Halo[i].Rho0;
     double a = Halo[i].A_hernq;
     double rc = Halo[i].Rcore;
     double rmax = Param.Boxsize; // "open" T boundary
@@ -82,8 +82,8 @@ double Internal_Energy_Profile_Analytic(const int i, const double d)
 	return u;
 }
 
-/* 
- * Numerical solution for all kinds of gas densities. We spline interpolate 
+/*
+ * Numerical solution for all kinds of gas densities. We spline interpolate
  * a table of solutions for speed. We have to solve the hydrostatic equation
  * (eq. 9 in Donnert 2014).
  */
@@ -106,12 +106,13 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 	double rho0 = Halo[i].Rho0;
 	double rc = Halo[i].Rcore;
 	double rcut = Param.Boxsize;
+	double beta = Halo[i].Beta;
 	int is_cuspy = Halo[i].Have_Cuspy;
 	double a = Halo[i].A_hernq;
 	double Mdm = Halo[i].Mass[1];
 
-	double rho_gas = Gas_density_profile(r, rho0, rc, rcut, is_cuspy);
-	double Mr_Gas = Mass_profile(r, rho0, rc, rcut, is_cuspy);
+	double rho_gas = Gas_density_profile(r, rho0, rc, rcut, beta, is_cuspy);
+	double Mr_Gas = Mass_profile(r, rho0, rc, rcut, beta, is_cuspy);
 	double Mr_DM = 1.1*Mdm * r*r/p2(r+a);
 
 	return rho_gas /(r*r) * (Mr_Gas + Mr_DM);
@@ -129,46 +130,47 @@ static void setup_internal_energy_profile(const int i)
 	double rmax = Param.Boxsize * sqrt(3);
 	double dr = ( log(rmax/rmin) ) / (TABLESIZE-1);
 
-	#pragma omp parallel 
+	#pragma omp parallel
 	{
-	
+
 	gsl_integration_workspace *gsl_workspace = NULL;
 	gsl_workspace = gsl_integration_workspace_alloc(2*TABLESIZE);
-	
+
 	#pragma omp for
 	for (int j = 1; j < TABLESIZE;  j++) {
-	
+
 		double error = 0;
 
 		double r = rmin * exp(dr * j);
-		
+
 		r_table[j] = r;
 
 		gsl_F.function = &u_integrant;
 		gsl_F.params = (void *) &i;
 
 		//printf("%d %g %g \n", j, r, u_integrant(r, (void *)&i ) );
-		
-		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-3, 2*TABLESIZE, 
+
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-3, 2*TABLESIZE,
 				GSL_INTEG_GAUSS41, gsl_workspace, &u_table[j], &error);
 
 		double rho0 = Halo[i].Rho0;
 		double rc = Halo[i].Rcore;
 		double rcut = Param.Boxsize;
+		double beta = Halo[i].Beta;
 		int is_cuspy = Halo[i].Have_Cuspy;
-	
-		double rho_gas = Gas_density_profile(r, rho0, rc, rcut, is_cuspy);
+
+		double rho_gas = Gas_density_profile(r, rho0, rc, rcut, beta, is_cuspy);
 
 		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
 	}
 
 	gsl_integration_workspace_free(gsl_workspace);
-	
+
 	U_Acc = gsl_interp_accel_alloc();
 
 	U_Spline = gsl_spline_alloc(gsl_interp_cspline, TABLESIZE);
 	gsl_spline_init(U_Spline, r_table, u_table, TABLESIZE);
-	
+
 	} // omp parallel
 
 	return ;

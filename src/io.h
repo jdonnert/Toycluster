@@ -15,7 +15,7 @@ extern struct GADGET_Header{
     int flag_stellarage;
     int flag_metals;
     unsigned int npartTotalHighWord[6];
-    char fill[64];      // fill to 256 Bytes 
+    char fill[64];      // fill to 256 Bytes
 } Header;
 
 struct Block_Info{
@@ -28,6 +28,7 @@ struct Block_Info{
     size_t Bytes_per_element;
 } Block;
 
+#ifndef GADGET2
 enum iofields{
     IO_POS,
     IO_VEL,
@@ -39,6 +40,17 @@ enum iofields{
     IO_BFLD,
     IO_LASTENTRY
 };
+#else
+enum iofields{
+    IO_POS,
+    IO_VEL,
+    IO_ID,
+    IO_U,
+    IO_RHO,
+    IO_HSML,
+    IO_LASTENTRY
+};
+#endif
 
 size_t my_fread(void *, size_t, size_t, FILE *, int);
 int find_block(FILE *, char *);

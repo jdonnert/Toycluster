@@ -18,25 +18,25 @@ void Make_magnetic_field()
 
     set_magnetic_vector_potential();
 
-	Bfld_from_rotA_SPH(); 
+	Bfld_from_rotA_SPH();
 
  	normalise_magnetic_field();
 
     return;
 }
 
-/* 
- * Bonafede 2010 scaling with central density 
- * this way we also can avoid smoothing of field 
+/*
+ * Bonafede 2010 scaling with central density
+ * this way we also can avoid smoothing of field
  */
 
 static void set_magnetic_vector_potential()
 {
 	const float boxhalf = 0.5 * Param.Boxsize;
 
-		#pragma omp parallel for 
+		#pragma omp parallel for
     	for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
-		
+
 			double A_max = 0;
 
 			for (int i = 0; i < Param.Nhalos; i++) {
@@ -50,21 +50,21 @@ static void set_magnetic_vector_potential()
 
 			double r2 = dx*dx + dy*dy + dz*dz;
 
-			double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0, 
-						Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
+			double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0,
+						Halo[i].Rcore, Halo[i].Rcut, Halo[i].Beta, Halo[i].Have_Cuspy);
 
 			double A = pow(rho_i/Halo[i].Rho0, Param.Bfld_Eta);
 
 			if (A > A_max)
 				A_max = A;
 			}
-		
+
 			SphP[ipart].Apot[0] = (float) A_max;
 			SphP[ipart].Apot[1] = (float) A_max;
 	    	SphP[ipart].Apot[2] = (float) A_max;
 		}
 
-    return ;  
+    return ;
 }
 
 static void normalise_magnetic_field()
@@ -73,11 +73,11 @@ static void normalise_magnetic_field()
 
  	double max_B2 = 0;
 
-	#pragma omp parallel for 
+	#pragma omp parallel for
 	for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
-		
-		double bfld2 = p2(SphP[ipart].Bfld[0]) 
-				+ p2(SphP[ipart].Bfld[1]) 
+
+		double bfld2 = p2(SphP[ipart].Bfld[0])
+				+ p2(SphP[ipart].Bfld[1])
 				+ p2(SphP[ipart].Bfld[2]);
 
 		max_B2 = fmax(max_B2, bfld2);
@@ -91,22 +91,22 @@ static void normalise_magnetic_field()
 
 	int cnt = 0;
 
-	#pragma omp parallel for reduction(+:cnt) 
+	#pragma omp parallel for reduction(+:cnt)
    	for (size_t ipart = 0; ipart < Param.Npart[0]; ipart++) {
-		
+
 		SphP[ipart].Bfld[0] *= norm;
 		SphP[ipart].Bfld[1] *= norm;
 		SphP[ipart].Bfld[2] *= norm;
 
-		double B2 = p2(SphP[ipart].Bfld[0]) + p2(SphP[ipart].Bfld[1]) + 
+		double B2 = p2(SphP[ipart].Bfld[0]) + p2(SphP[ipart].Bfld[1]) +
 					p2(SphP[ipart].Bfld[2]);
-	
+
 		float x = P[ipart].Pos[0] - boxhalf,
 			  y = P[ipart].Pos[1] - boxhalf,
 			  z = P[ipart].Pos[2] - boxhalf;
-			
+
 		int i = Halo_containing(ipart,x,y,z);
-		
+
 		double bmax = BMAX;
 
 		if (i > 1) // subhaloes

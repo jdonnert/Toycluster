@@ -5,7 +5,7 @@
 #define VERSION "2.0"
 
 /* C std lib */
-#include <stdlib.h> 			// system       
+#include <stdlib.h> 			// system
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -29,8 +29,8 @@
 #include "proto.h"
 
 /* Code parameters */
-#define CHARBUFSIZE 512	    // For any char buffer ! 
-#define MAXTAGS 300			// In parameter file 
+#define CHARBUFSIZE 512	    // For any char buffer !
+#define MAXTAGS 300			// In parameter file
 
 #ifdef SPH_CUBIC_SPLINE
 
@@ -47,7 +47,7 @@
 #endif // SPH_CUBIC_SPLINE
 
 
-#define R200_TO_RMAX_RATIO 3.75 // this fits Y_M500 correlation 
+#define R200_TO_RMAX_RATIO 3.75 // this fits Y_M500 correlation
 #define MAXHALOS 4096      // maximum number of subhalos
 #define ZERO_ENERGY_ORBIT_FRACTION_SUB 1 // substructure vel fraction
 
@@ -80,8 +80,8 @@
 #define adiabatic_index (5./3.)
 
 extern struct OpenMP_infos{
-    int NThreads;          // Number of openMP threads 
-    int ThreadID;          // Thread ID of this thread 
+    int NThreads;          // Number of openMP threads
+    int ThreadID;          // Thread ID of this thread
 	unsigned short Seed[3]; // random number seed: erand48(Omp.Seed)
 } Omp;
 #pragma omp threadprivate(Omp)
@@ -93,16 +93,16 @@ extern struct Parameters{
     double Mtotal;
     double Mtot200;					// total mass in R200 of system
     double Mass_Ratio;
-    double Impact_Param;			
+    double Impact_Param;
     double Mpart[6];				// particle masses
 	double Redshift;				// cluster redshift for scaling relations
-    int Cuspy;                      // Cuspy Parameter, set in Binary 
-    double Bfld_Norm;               // B0 
+    int Cuspy;                      // Cuspy Parameter, set in Binary
+    double Bfld_Norm;               // B0
     double Bfld_Eta;                // Bfld scaling (Bonafede 10)
-    double Boxsize;    
+    double Boxsize;
     double VelMerger[2];            // Merging velocity
     int Nhalos;                     // Number of halos, incl. substructure
-	double GravSofteningLength;		
+	double GravSofteningLength;
 	double Zero_Energy_Orbit_Fraction;
 #ifdef ADD_THIRD_SUBHALO
 	double SubFirstMass;
@@ -125,31 +125,32 @@ extern struct SubhaloData {
 } Sub;
 
 extern struct HaloProperties {
-    long long Ntotal;               // total npart this cluster 
-    long long Npart[6];             // npart of particle type 
-    int Have_Cuspy;                 // Is this cluster cored or cuspy 
+    long long Ntotal;               // total npart this cluster
+    long long Npart[6];             // npart of particle type
+    int Have_Cuspy;                 // Is this cluster cored or cuspy
 	int Is_Stripped;
-    double Mtotal;                  // Mass of this cluster 
-    double Mass[6];                 // Mass in 6 particle types 
-    double Mtotal200;               // Total Mass inside R200 
-    double Mass200[6];              // Mass inside R200 
+    double Mtotal;                  // Mass of this cluster
+    double Mass[6];                 // Mass in 6 particle types
+    double Mtotal200;               // Total Mass inside R200
+    double Mass200[6];              // Mass inside R200
 	double MassCorrFac; 			// Correct DM profile for Rsample != infty
-    double C_nfw;                   // NFW profile concentration param 
-    double Rs;                      // NFW eq. scale radius 
-    double R200;                    // Virial Radius 
-    double R500;                    // Observational virial Radius 
-    double A_hernq;                 // Hernquist parameter <- C_nfw 
-    double Rho0;                    // Density normalisation 
-    double Rcore;                   // Beta-model core radius 
+    double C_nfw;                   // NFW profile concentration param
+    double Rs;                      // NFW eq. scale radius
+    double R200;                    // Virial Radius
+    double R500;                    // Observational virial Radius
+    double A_hernq;                 // Hernquist parameter <- C_nfw
+    double Rho0;                    // Density normalisation
+    double Rcore;                   // Beta-model core radius
+    double Beta;                    // Beta-model beta
 	double Bf_eff;					// Effective Baryon Fraction in r500
-    double D_CoM[3];                // Distance from Center of Mass in x 
-    double BulkVel[3];              // Velocity rel to Center of Mass 
-    double R_Sample[2];                // DM Sampling size 
+    double D_CoM[3];                // Distance from Center of Mass in x
+    double BulkVel[3];              // Velocity rel to Center of Mass
+    double R_Sample[2];                // DM Sampling size
 	double Rcut;					// SPH Sampling size
     double TempOffset;              // T of the parent cluster
-    struct ParticleData *DM;        // DM Particle Data in P 
-    struct ParticleData *Gas;       // Gas Particle Data in P 
-    struct GasParticleData *SphP;   // Gas Particle Data in SphP 
+    struct ParticleData *DM;        // DM Particle Data in P
+    struct ParticleData *Gas;       // Gas Particle Data in P
+    struct GasParticleData *SphP;   // Gas Particle Data in SphP
 } Halo[MAXHALOS];
 
 extern struct ParticleData{

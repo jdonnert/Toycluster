@@ -382,9 +382,11 @@ void Read_param_file(char *filename)
 	addr[nt] = &Param.VelMerger[0];
 	id[nt++] = REAL;
 
+#ifdef FREEBETA
     strcpy(tag[nt], "beta_0");
 	addr[nt] = &Halo[0].Beta;
 	id[nt++] = REAL;
+#endif
 
     strcpy(tag[nt], "rc_0");
 	addr[nt] = &Halo[0].Rcore;

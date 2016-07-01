@@ -35,12 +35,24 @@ double Internal_Energy_Profile_Analytic(const int i, const double d) ;
 double Concentration_parameter(const int);
 double Gas_core_radius(const int, char *);
 double Hernquist_density_profile(const double, const double, const double);
+#if defined(FREEBETA) && defined(GIVEPARAMS)
 double Beta_density_profile(const double, const double, const double,
-		const double);
+        const double, const double);
 double Mass_profile(const double, const double, const double,
-		const double, const double, const bool);
+        const double, const double, const bool);
 double Gas_density_profile(const double, const double, const double,
-		const double, const double, const bool);
+        const double, const double, const bool);
+// To solve hypergeometrical equation
+double extern gsl_sf_hyperg_2F1(double, double, double, double);
+double extern gsl_sf_gamma(double);
+#else
+double Beta_density_profile(const double, const double, const double,
+        const double);
+double Mass_profile(const double, const double, const double,
+        const double, const bool);
+double Gas_density_profile(const double, const double, const double,
+        const double, const bool);
+#endif // FREEBETA
 int Halo_containing(const int, const float,const float,const float);
 float Global_density_model(const int);
 

@@ -134,6 +134,7 @@ MassCorrFac	globals.h	/^	double MassCorrFac; 			\/\/ Correct DM profile for Rsam
 MassFraction	globals.h	/^	double MassFraction;$/;"	m	struct:SubhaloData
 Mass_Ratio	globals.h	/^    double Mass_Ratio;$/;"	m	struct:Parameters
 Mass_profile	setup.c	/^double Mass_profile(const double r, const double rho0, const double rc,$/;"	f
+Mass_profile	test.c	/^double Mass_profile(const double r, const double rho0, const double rc,$/;"	f
 Mass_profile_table	positions.c	/^       Mass_profile_table[NTABLE];$/;"	v	file:
 Max_Nodes	tree.c	/^int Max_Nodes = 0;$/;"	v
 Mpart	globals.h	/^    double Mpart[6];				\/\/ particle masses$/;"	m	struct:Parameters

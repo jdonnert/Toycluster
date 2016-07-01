@@ -34,7 +34,7 @@ UnitVelocity_in_cm_per_s     1e5                %  1 km/sec
 % cluster 0 is CygA
 c_nfw_0     3.663
 v_com_0     0
-beta_0      0.539
+beta_0      0.666666667     %0.539
 rc_0        26.141   % From fit to Chandra data. Do I believe this?
 
 % cluster 1 is CygB

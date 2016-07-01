@@ -50,8 +50,13 @@ static void set_magnetic_vector_potential()
 
 			double r2 = dx*dx + dy*dy + dz*dz;
 
+#if defined(FREEBETA) && defined(GIVEPARAMS)
 			double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0,
 						Halo[i].Rcore, Halo[i].Rcut, Halo[i].Beta, Halo[i].Have_Cuspy);
+#else
+			double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0,
+						Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
+#endif
 
 			double A = pow(rho_i/Halo[i].Rho0, Param.Bfld_Eta);
 

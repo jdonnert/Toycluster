@@ -568,75 +568,156 @@ Hernquist_density_profile(const double m, const double a, const double r)
     return m / (2*pi) * a/(r*p3(r+a));
 }
 
-/* return M(<= R) of a beta profile with beta=2/3 */
+#if defined(FREEBETA) && defined(GIVEPARAMS)
+/* return M(<= R) of a beta profile with beta=free parameter */
 double Mass_profile(const double r, const double rho0, const double rc,
         const double rcut, const double beta, const bool Is_Cuspy)
 {
-    const double r2 = p2(r);
-    const double rc2 = p2(rc);
-    const double rcut2 = p2(rcut);
+    /*
+     * M(<r) = int rho(r) 4 pi r**2 dr. Beautifully analtical solution
+     * onlyif beta == 2/3 or beta == -1. If beta is a free parameter
+     * we get a lovely hypergeometrical function 2F1(a,b;c;x)
+     *
+     * These are built-in in gsl, and in scipy.special using cephes library.
+     * In scipy this works, but both in gsl and when using cephes it breaks.
+     *
+     * gsl_sf_hyperg_2F1 only works for x in [-1, 1]
+     * and, sadly, hyp2f1 in cephes math library breaks with overflow error
+     *
+     * Therefore we use some dark magic gleaned from
+     * https://people.maths.ox.ac.uk/porterm/research/pearson_final.pdf
+     * Specifially table 13 case 1, and the corresponding equation 4.16 works
+     * Lets pray to the gods of mathemagics that this voodoo works :-)...
+     */
 
-#ifdef GIVEPARAMS
-    printf("r=%g\trho0=%g\trc=%g\trcut=%g\tbeta=%g\t-p2(r/rc)=%g\n",
-            r, rho0, rc, rcut, beta, -p2(r)/p2(rc));
+    // Probably a mighty bad idea to shut the gsl error handler up ...
+    // gsl_error_handler_t * old_handler = gsl_set_error_handler_off();
+    // yay, this is no longer needed because it works :-)!
 
+    // gsl_set_error_handler(old_handler);
+
+    // Because Wolfram Alpha says this is the solution to integrating
+    // int r**2(1+r**2/a**2)**(-3/2 * beta) dr
+    //      = 1/3 r**3 2F1(1.5, 1.5*beta; 2.5; -r**2/rc**2) + constant
+    // TODO: int r**2(1+r**2/a**2)**(-3/2 * beta)*(1+r**4/b**4)**-1 dr
+    // WA: "no result found in terms of standard mathematical functions"
+    double a = 1.5;
+    double b = 1.5*beta;
+    // cannot be called c because c is defined as speed of light!
+    double c_hg = 2.5;
+    double z = -p2(r)/p2(rc);
     //  Probably a mighty bad idea ...
-    gsl_error_handler_t * old_handler = gsl_set_error_handler_off();
-    double Mr = rho0 * p3(r)/3 * gsl_sf_hyperg_2F1(1.5, 1.5*beta, 2.5, -p2(r/rc));
-    gsl_set_error_handler(old_handler);
-    printf("Mr=%g\n", 4*pi*Mr);
+    // gsl_error_handler_t * old_handler = gsl_set_error_handler_off();
+    double magic = NAN;
 
-    return 4 * pi * Mr;
+
+    // Because black magic voodoo ArXiV 1502.05624 equation 5, 6
+    // TODO: add original reference referenced by ref above..
+    if (z < -2.0)
+    {
+        magic = pow(-z, -a)
+            * (gsl_sf_gamma(c_hg)*gsl_sf_gamma(b-a))
+            / (gsl_sf_gamma(b)*gsl_sf_gamma(c_hg-a))
+            * gsl_sf_hyperg_2F1(a, 1.0-c_hg+a, 1.0-b+a, 1.0/z)
+            + pow(-z, -b)
+            * (gsl_sf_gamma(c_hg)*gsl_sf_gamma(a-b))
+            / (gsl_sf_gamma(a)*gsl_sf_gamma(c_hg-b))
+            * gsl_sf_hyperg_2F1(b, 1.0-c_hg+b, 1.0-a+b, 1.0/z);
+    }
+    // Because black magic voodoo ArXiV 1502.05624 equation 3, 4
+    // TODO: add original reference referenced by ref above..
+    else if (z < -1.0)
+    {
+        // printf("1-z=%g\n", 1.0-z);
+        // only if |arg(1-z)| < pi. Solved by the z < -2 above
+        magic = pow(1.0-z, -a)
+            * (gsl_sf_gamma(c_hg)*gsl_sf_gamma(b-a))
+            / (gsl_sf_gamma(b)*gsl_sf_gamma(c_hg-a))
+            * gsl_sf_hyperg_2F1(a, c_hg-b, a-b+1.0, 1.0/(1.0-z))
+            + pow(1.0-z, -b)
+            * (gsl_sf_gamma(c_hg)*gsl_sf_gamma(a-b))
+            / (gsl_sf_gamma(a)*gsl_sf_gamma(c_hg-b))
+            * gsl_sf_hyperg_2F1(b, c_hg-a, b-a+1.0, 1.0/(1.0-z));
+    }
+    else
+    {
+        magic = gsl_sf_hyperg_2F1(a, b, c_hg, z);
+    }
+
+    // printf("magic=%g\n", magic);
+    double Mr = 4 * pi * rho0 * p3(r)/3 * magic;
+    // printf("Mr=%g\n\n", Mr*g2msun);
+
+    // gsl_set_error_handler(old_handler);
+
+    return Mr;
+}
 #else
+/* return M(<= R) of a beta profile with beta=2/3 */
+double Mass_profile(const double r, const double rho0, const double rc,
+		const double rcut, const bool Is_Cuspy)
+{
+	const double r2 = p2(r);
+	const double rc2 = p2(rc);
+	const double rcut2 = p2(rcut);
 
-
-
-    double Mr = rho0 * rc2*rcut2*rcut/(8*(p2(rcut2)+p2(rc2))) * // fourth order
-        ( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2)
-                                  - log(rcut2 + sqrt2*rcut*r+r2))
-                   - 2 * (rc2 + rcut2) * atan(1 - sqrt2*r/rcut)
-                   + 2 * (rc2 + rcut2) * atan(sqrt2 * r/rcut + 1))
-          - 8 * rc * rcut * atan(r/rc));
+	double Mr = rho0 * rc2*rcut2*rcut/(8*(p2(rcut2)+p2(rc2))) * // fourth order
+		( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2)
+								- log(rcut2 + sqrt2*rcut*r+r2))
+				   - 2 * (rc2 + rcut2) * atan(1 - sqrt2*r/rcut)
+				   + 2 * (rc2 + rcut2) * atan(sqrt2 * r/rcut + 1))
+		  - 8 * rc * rcut * atan(r/rc));
 
 #ifdef DOUBLE_BETA_COOL_CORES
 
-    double rc_cc = rc / Param.Rc_Fac;
-    double rc2_cc = p2(rc_cc);
-    double rho0_cc = rho0 * Param.Rho0_Fac;
+	double rc_cc = rc / Param.Rc_Fac;
+	double rc2_cc = p2(rc_cc);
+	double rho0_cc = rho0 * Param.Rho0_Fac;
 
-    double Mr_cc = 0;
+	double Mr_cc = 0;
 
-    if (Is_Cuspy)
-        Mr += rho0_cc * rc2_cc*rcut2*rcut/(8*(p2(rcut2)+p2(rc2_cc))) *
-            ( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2)
-                                      - log(rcut2 + sqrt2*rcut*r+r2))
-                       - 2 * (rc2_cc + rcut2) * atan(1 - sqrt2*r/rcut)
-                       + 2 * (rc2_cc + rcut2) * atan(sqrt2 * r/rcut + 1))
-              - 8 * rc_cc * rcut * atan(r/rc));
+	if (Is_Cuspy)
+		Mr += rho0_cc * rc2_cc*rcut2*rcut/(8*(p2(rcut2)+p2(rc2_cc))) *
+			( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2)
+									- log(rcut2 + sqrt2*rcut*r+r2))
+					   - 2 * (rc2_cc + rcut2) * atan(1 - sqrt2*r/rcut)
+					   + 2 * (rc2_cc + rcut2) * atan(sqrt2 * r/rcut + 1))
+			  - 8 * rc_cc * rcut * atan(r/rc));
 
 #endif // DOUBLE_BETA_COOL_CORES
 
-    return 4 * pi * Mr;
-#endif // GIVEPARAMS
+	return 4 * pi * Mr;
 }
+#endif // FREEBETA
 
-/* Double beta profile at rc and rcut */
+
+#ifdef FREEBETA
 double Gas_density_profile(const double r, const double rho0,
         const double rc, const double rcut, const double beta, const bool Is_Cuspy)
 {
-    double rho = rho0 * pow((1 + p2(r/rc)), -3.0/2*beta) / (1 + p3(r/rcut) * (r/rcut));
-
-#ifdef DOUBLE_BETA_COOL_CORES
-
-    double rho0_cc = rho0 * Param.Rho0_Fac;
-    double rc_cc = rc / Param.Rc_Fac;
-
-    if (Is_Cuspy)
-        rho += rho0_cc / (1 + p2(r/rc_cc)) / (1 + p3(r/rcut) * (r/rcut));
-
-#endif // DOUBLE_BETA_COOL_CORES
+    // NB Donnert 2014 w/o additional cut-off at r200 for numerical stability!
+    // Not Donnert+ 2016 in prep, where rho/=(1+p4(r/rcut))
+    double rho = rho0 * pow((1 + p2(r/rc)), -3.0/2*beta);
 
     return rho;
 }
+#else
+/* Double beta profile at rc and rcut */
+double Gas_density_profile(const double r, const double rho0,
+		const double rc, const double rcut, const bool Is_Cuspy)
+{
+	double rho = rho0 / (1 + p2(r/rc)) / (1 + p3(r/rcut) * (r/rcut));
 
+#ifdef DOUBLE_BETA_COOL_CORES
 
+	double rho0_cc = rho0 * Param.Rho0_Fac;
+	double rc_cc = rc / Param.Rc_Fac;
+
+	if (Is_Cuspy)
+		rho += rho0_cc / (1 + p2(r/rc_cc)) / (1 + p3(r/rcut) * (r/rcut));
+
+#endif // DOUBLE_BETA_COOL_CORES
+
+	return rho;
+}
+#endif // # FREEBETA

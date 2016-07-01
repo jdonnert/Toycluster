@@ -141,7 +141,9 @@ extern struct HaloProperties {
     double A_hernq;                 // Hernquist parameter <- C_nfw
     double Rho0;                    // Density normalisation
     double Rcore;                   // Beta-model core radius
+#if defined(FREEBETA) && defined(GIVEPARAMS)
     double Beta;                    // Beta-model beta
+#endif
 	double Bf_eff;					// Effective Baryon Fraction in r500
     double D_CoM[3];                // Distance from Center of Mass in x
     double BulkVel[3];              // Velocity rel to Center of Mass

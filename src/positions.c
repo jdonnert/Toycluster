@@ -166,9 +166,15 @@ static void fill_mass_profile_table(const int i)
 
         r[j] = pow(10,j*step) - 1;
 
+#if defined(FREEBETA) && defined(GIVEPARAMS)
 	    Mass_profile_table[j] = Mass_profile(r[j], Halo[i].Rho0,
 					Halo[i].Rcore, Halo[i].Rcut, Halo[i].Beta, Halo[i].Have_Cuspy);
     }
+#else
+	    Mass_profile_table[j] = Mass_profile(r[j], Halo[i].Rho0,
+					Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
+    }
+#endif // FREEBETA
 
 	for (int j = 0; j < NTABLE; j++)
 		Mass_profile_table[j] /= Mass_profile_table[NTABLE-1];
@@ -424,8 +430,13 @@ int Halo_containing(const int type, const float x, const float y, const float z)
    	   		float r = sqrt(p2(x - Halo[j].D_CoM[0]) + p2(y - Halo[j].D_CoM[1])
 				 + p2(z - Halo[j].D_CoM[2]));
 
+#if defined(FREEBETA) && defined(GIVEPARAMS)
 			double rho_gas = Gas_density_profile(r, Halo[j].Rho0,
 							Halo[j].Rcore, Halo[j].Rcut, Halo[j].Beta, Halo[j].Have_Cuspy);
+#else
+			double rho_gas = Gas_density_profile(r, Halo[j].Rho0,
+							Halo[j].Rcore, Halo[j].Rcut, Halo[j].Have_Cuspy);
+#endif // FREEBETA
 
        		if ( (rho_gas > rho_max) && (r < Halo[j].R_Sample[0]) ) {
 

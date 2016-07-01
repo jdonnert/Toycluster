@@ -9,6 +9,7 @@ OPT     += -DGIVEPARAMS            # more merger parameters in .par file
 
 OPT     += -DGADGET2
 OPT     += -DSPH_CUBIC_SPLINE
+OPT     += -DFREEBETA
 
 #OPT     += -DDOUBLE_BETA_COOL_CORES
 

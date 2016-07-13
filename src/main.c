@@ -5,7 +5,7 @@
  * Given total mass, mass ratio and Magnetic field parameters
  * we assume a DM density following Hernquist 1998, Springel+ 2007
  * and model the gas according to Mastropietro+ 2008 
- * Published in Donnert 2013. 
+ * Published in Donnert 2014, Donnert+ 2016b. 
  * */
 
 int main(int argc, char *argv[])
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 
     if (Cosmo.Baryon_Fraction) { // make SPH ICM
 
-		Regularise_sph_particles();
+//		Regularise_sph_particles();
 
 		Find_sph_quantities();
 

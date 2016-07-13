@@ -378,6 +378,10 @@ void Read_param_file(char *filename)
 	addr[nt] = &Halo[0].Rcore;
 	id[nt++] = REAL;
 
+    strcpy(tag[nt], "beta_0");
+	addr[nt] = &Halo[0].Beta;
+	id[nt++] = REAL;
+
     strcpy(tag[nt], "c_nfw_1");
 	addr[nt] = &Halo[1].C_nfw;
 	id[nt++] = REAL;
@@ -389,6 +393,11 @@ void Read_param_file(char *filename)
     strcpy(tag[nt], "rc_1");
 	addr[nt] = &Halo[1].Rcore;
 	id[nt++] = REAL;
+
+    strcpy(tag[nt], "beta_1");
+	addr[nt] = &Halo[1].Beta;
+	id[nt++] = REAL;
+
 #endif
 
 #ifdef ADD_THIRD_SUBHALO

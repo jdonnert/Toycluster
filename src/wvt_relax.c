@@ -243,7 +243,7 @@ float Global_density_model(const int ipart)
 	//		continue;
 
 		double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0, 
-				Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
+				Halo[i].Beta, Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
 
 		if (rho_i > rho)
 			rho = rho_i;

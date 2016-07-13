@@ -8,7 +8,7 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
 #OPT	+= -DDOUBLE_BETA_COOL_CORES
 
-#OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
+OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
 #OPT	+= -DSUBSTRUCTURE	# add substructure
 #OPT += -DSUBHOST=1		# host halos
@@ -16,9 +16,9 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 #OPT += -DREPORTSUBHALOS		# print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
-#OPT  += -DTHIRD_HALO_ONLY 
+#OPT  += -DTHIRD_HALO_ONLY
 
-OPT += -DSPH_CUBIC_SPLINE
+#OPT += -DSPH_CUBIC_SPLINE 	# for use with Gadget2
 
 ## Target Computer ##
 ifndef SYSTYPE

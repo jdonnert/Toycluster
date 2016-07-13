@@ -140,6 +140,7 @@ extern struct HaloProperties {
     double R500;                    // Observational virial Radius 
     double A_hernq;                 // Hernquist parameter <- C_nfw 
     double Rho0;                    // Density normalisation 
+	double Beta;					// Beta-model exponent
     double Rcore;                   // Beta-model core radius 
 	double Bf_eff;					// Effective Baryon Fraction in r500
     double D_CoM[3];                // Distance from Center of Mass in x 

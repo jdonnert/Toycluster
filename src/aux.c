@@ -12,7 +12,10 @@ struct SubhaloData Sub = { 2 , 0 }; // set Sub.First
 #pragma omp threadprivate(Omp)
 struct OpenMP_infos Omp = { 0 };
 
-/* Memory Management */
+/* 
+ * Memory Management 
+ */
+
 void *Malloc_info(const char* func, const char* file, const int line, 
         size_t size)
 {
@@ -46,8 +49,11 @@ void Free_info(const char* func, const char* file, const int line, void *ptr)
     return ;
 }
 
-/* Error Handling, we use variable arguments to be able
- * to print more informative error messages */
+/* 
+ * Error Handling, we use variable arguments to be able
+ * to print more informative error messages 
+ */
+
 void Assert_Info(const char *func, const char *file, int line,
 		int64_t expr, const char *errmsg, ...)
 {

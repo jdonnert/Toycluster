@@ -309,7 +309,8 @@ static void set_subhalo_properties(const int i)
 	Halo[i].R200 = r200; 
 	Halo[i].C_nfw = c_nfw;
 
-	const double r_strip = 0; //.1* Halo[0].R200; // gas is assumed stripped beyond this radius
+	const double r_strip = 0; //.1* Halo[0].R200; 
+					// gas is assumed stripped beyond this radius
 
 	Halo[i].Rcut = 0.6*Halo[i].R_Sample[0];
 
@@ -331,6 +332,7 @@ static void set_subhalo_properties(const int i)
 
 	char tmp[CHARBUFSIZE] = {""};
 
+	Halo[i].Beta = 2.0/3.0; // implicitely assumed
 	double rc = Halo[i].Rcore = Gas_core_radius(i, tmp);
 
 	Halo[i].Rho0 = Halo[i].Mass200[0]/(4*pi*p3(rc))/(r200/rc - atan(r200/rc));

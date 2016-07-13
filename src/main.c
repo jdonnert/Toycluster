@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 
 		Find_sph_quantities();
 
-        //Make_magnetic_field();
+        Make_magnetic_field();
 
 		Reassign_particles_to_halos();
 

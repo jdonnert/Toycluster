@@ -92,8 +92,6 @@ static void sample_Gas_particles(const int i)
 	const double dCoM[3] ={Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
 	const double boxhalf = Param.Boxsize/2;
 
-	fill_mass_profile_table(i); 
-
 	#pragma omp parallel for
    	for (size_t ipart = 0; ipart < Halo[i].Npart[0]; ipart++) {
 		
@@ -102,8 +100,8 @@ static void sample_Gas_particles(const int i)
 			double theta = acos(2 *  erand48(Omp.Seed) - 1);
         	double phi = 2*pi * erand48(Omp.Seed);
 
-           	double q = erand48(Omp.Seed);  
-           	double r = invert_mass_profile(q); // beta model, alpha = 2/3
+           	double m = erand48(Omp.Seed) * Halo[i].Mass[0];  
+           	double r = Invert_Mass_Profile(m);
    
            	double x = r * sin(theta) * cos(phi);
            	double y = r * sin(theta) * sin(phi);
@@ -130,58 +128,6 @@ static void sample_Gas_particles(const int i)
    	} //ipart
 
 	return ;
-}
-
-/* 
- * For gas particles we need to invert M(<r)/M
- * which is not analytical for this model.
- * instead we write M(<r)/M into a table and 
- * invert numerically with linear interpolation. 
- */
-
-static double invert_mass_profile(const double q)
-{
-    int i = 0;
-
-    for (i = 0; i < NTABLE-1; i++) // exit with i<=NTABLE-1 to avoid overflow
-        if (Mass_profile_table[i+1] > q)
-            break;
-
-    return (q-offset_table[i])/dfdr_table[i];
-}
-
-static void fill_mass_profile_table(const int i)
-{
-	double step = log10(Halo[i].R_Sample[0])/NTABLE;
-
-    double r[NTABLE] = { 0 };
-	
-	size_t nBytes = NTABLE * sizeof(double);
-
-	memset(Mass_profile_table, 0, nBytes);
-	memset(dfdr_table, 0, nBytes);
-	memset(offset_table, 0, nBytes);
-
-    for (int j = 0; j < NTABLE; j++) { // mass profile
-
-        r[j] = pow(10,j*step) - 1;
-
-	    Mass_profile_table[j] = Mass_profile(r[j], Halo[i].Rho0, 
-					Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
-    }
-
-	for (int j = 0; j < NTABLE; j++)
-		Mass_profile_table[j] /= Mass_profile_table[NTABLE-1];
-	
-	for (int j = 1; j < NTABLE; j++) { // linear interpolation
-
-        dfdr_table[j] = (Mass_profile_table[j] - Mass_profile_table[j-1])
-            /(r[j] - r[j-1]);
-        
-        offset_table[j] =  Mass_profile_table[j] - dfdr_table[j]*r[j];
-    }
-
-    return;
 }
 
 /* 
@@ -424,7 +370,7 @@ int Halo_containing(const int type, const float x, const float y, const float z)
    	   		float r = sqrt(p2(x - Halo[j].D_CoM[0]) + p2(y - Halo[j].D_CoM[1])  
 				 + p2(z - Halo[j].D_CoM[2]));
 
-			double rho_gas = Gas_density_profile(r, Halo[j].Rho0, 
+			double rho_gas = Gas_density_profile(r, Halo[j].Rho0, Halo[j].Beta,
 							Halo[j].Rcore, Halo[j].Rcut,Halo[j].Have_Cuspy);
 
        		if ( (rho_gas > rho_max) && (r < Halo[j].R_Sample[0]) ) {

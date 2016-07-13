@@ -92,6 +92,9 @@ static void sample_Gas_particles(const int i)
 	const double dCoM[3] ={Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
 	const double boxhalf = Param.Boxsize/2;
 
+	Setup_Mass_Profile(Halo[i].Rho0, Halo[i].Rcore, Halo[i].Beta, Halo[i].Rcut
+			, Halo[i].Have_Cuspy);
+
 	#pragma omp parallel for
    	for (size_t ipart = 0; ipart < Halo[i].Npart[0]; ipart++) {
 		
@@ -395,8 +398,11 @@ int compare_int(const void * a, const void *b)
 }
 
 
-/* memory efficient out of place sorting of both particle structures 
- * Knowing where idx starts in memory we can reconstruct ipart */
+/* 
+ * memory efficient out of place sorting of both particle structures 
+ * Knowing where idx starts in memory we can reconstruct ipart 
+ */
+
 static void sort_particles(int *ids, const size_t nPart) 
 {
     size_t *idx = Malloc(nPart*sizeof(*idx));

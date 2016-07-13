@@ -9,7 +9,7 @@ static struct int_param {
 	double rc;
 	double rcut;
 	double cuspy;
-};
+} ip;
 
 /* 
  * Set all relevant parameters for the collision. This is a mess.
@@ -647,11 +647,11 @@ void Setup_Mass_Profile(const double rho0, const double rc, const double beta,
 	double dr_table[NTABLE] = { 0 };
 
 	double rmin = 0.1;
-	Rmax = Param.Boxsize * sqrt(3);
+	Rmax = Param.Boxsize;
 	double log_dr = ( log10(Rmax/rmin) ) / (NTABLE - 1);
 	
 	gsl_function gsl_F = { 0 };
-
+	
 	#pragma omp parallel
 	{
 	
@@ -664,7 +664,7 @@ void Setup_Mass_Profile(const double rho0, const double rc, const double beta,
 		double error = 0;
 
 		r_table[i] = rmin * pow(10, log_dr * i);
-		
+
 		struct int_param ip = { rho0, beta, rc, rcut, cuspy };
 
 		gsl_F.function = &m_integrant;
@@ -672,13 +672,15 @@ void Setup_Mass_Profile(const double rho0, const double rc, const double beta,
 
 		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-3, NTABLE, 
 				GSL_INTEG_GAUSS41, gsl_workspace, &m_table[i], &error);
+
+		m_table[i] = fmax(m_table[i],m_table[i-1]); // integrator may fluctuate
 	}
 
 	M_Acc  = gsl_interp_accel_alloc();
 
 	M_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
 	gsl_spline_init(M_Spline, r_table, m_table, NTABLE);
-		
+
 	Minv_Acc  = gsl_interp_accel_alloc();
 
 	Minv_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);

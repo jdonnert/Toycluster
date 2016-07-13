@@ -195,7 +195,7 @@ static void calc_distribution_function_table(int iCluster)
 	double rstep = log10(rmax/rmin) / NSAMPLE; // good up to one Gpc
 
 	double psi[NSAMPLE] = { 0 }, rho[NSAMPLE] = { 0 };
-		
+
 	setup_potential_profile(iCluster);
 
 	#pragma omp parallel for  
@@ -261,6 +261,7 @@ static void calc_distribution_function_table(int iCluster)
 	}
 
 	fE[0] = fE[1]; // avoid singularity at r=0, E=Emax
+	fE[NTABLE-1] = 0;
 
 	gsl_integration_workspace_free(w);
 
@@ -429,7 +430,7 @@ static void setup_potential_profile(int i)
 	double psi_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 
-	gsl_integration_qag(&gsl_F, 0, 1e50, 0, 1e-5, 2048, 
+	gsl_integration_qag(&gsl_F, 0, 1e10, 0, 1e-3, 2048, 
 			GSL_INTEG_GAUSS41, gsl_workspace, &psi_table[0], &error);
 	
 	double rmin = 0.1;
@@ -440,10 +441,10 @@ static void setup_potential_profile(int i)
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-5, 2048, 
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, 2048, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 
-		psi_table[j] = -1*(psi_table[j] - psi_table[0]); // gauge: r->inf, psi->0
+		psi_table[j] = -1*(psi_table[j] - psi_table[0]); // gauge r->inf, psi->0
 
 	}
 
@@ -462,7 +463,7 @@ static void setup_potential_profile(int i)
 
 static double gas_potential_profile(const int i, const double r)
 {
-	if (r > 1e11)
+	if (r > 1e10)
 		return 0; // only noise in the spline, psi close to 0
 	else
 		return gsl_spline_eval(Psi_Spline, r, Psi_Acc);

@@ -156,7 +156,7 @@ static void setup_internal_energy_profile(const int i)
 		double rho0 = Halo[i].Rho0;
 		double rc = Halo[i].Rcore;
 		double beta = Halo[i].Beta;
-		double rcut = Param.Boxsize;
+		double rcut = Halo[i].Rcut;
 		int is_cuspy = Halo[i].Have_Cuspy;
 	
 		double rho_gas = Gas_density_profile(r, rho0, beta, rc, rcut, is_cuspy);

@@ -3,7 +3,7 @@
 Output_file ./IC_single_0   % Base name 
 
 Ntotal      2000000  % Total Number of Particles in R200
-Mtotal      5e4   % Total Mass in Code Units
+Mtotal      9439   % Total Mass in Code Units
 
 Mass_Ratio  0 %.3125       % set =0 for single cluster
 
@@ -30,10 +30,10 @@ UnitVelocity_in_cm_per_s 	1e5                %  1 km/sec
 %% here some more merger parameters can be set by hand
 
 % cluster 0
-c_nfw_0     3.662
+c_nfw_0     4
 v_com_0     0
-beta_0		0.538
-rc_0        26
+beta_0		0.79
+rc_0        300
 
 % cluster 1
 c_nfw_1    4.089

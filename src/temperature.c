@@ -137,7 +137,7 @@ static void setup_internal_energy_profile(const int i)
 	gsl_workspace = gsl_integration_workspace_alloc(2*TABLESIZE);
 	
 	#pragma omp for
-	for (int j = 0; j < TABLESIZE;  j++) {
+	for (int j = 1; j < TABLESIZE;  j++) {
 	
 		double error = 0;
 
@@ -165,6 +165,7 @@ static void setup_internal_energy_profile(const int i)
 		//						u_integrant(r, (void *)&i ));
 	}
 
+	u_table[0] = u_table[1];
 	u_table[TABLESIZE-1] = 0;
 
 	gsl_integration_workspace_free(gsl_workspace);

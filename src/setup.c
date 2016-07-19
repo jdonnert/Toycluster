@@ -1,6 +1,9 @@
 #include "globals.h"
 
-/* Set all relevant parameters for the collision */
+/* 
+ * Set all relevant parameters for the collision 
+ */
+
 void Setup()
 {
     double mtot[2] = {0}, mDM, mGas;

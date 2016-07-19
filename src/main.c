@@ -49,11 +49,11 @@ int main(int argc, char *argv[])
 
     if (Cosmo.Baryon_Fraction) { // make SPH ICM
 
-		Regularise_sph_particles();
+		//Regularise_sph_particles();
 
 		Find_sph_quantities();
 
-        //Make_magnetic_field();
+       // Make_magnetic_field();
 
 		Reassign_particles_to_halos();
 

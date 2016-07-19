@@ -24,7 +24,10 @@ static double tidal_radius(const int, const double);
 static double nfw_scale_radius(const double, const double, const double);
 static double nfw_mass_profile(const double, const double, const double);
 
-/* Subhalos are treated as independent Halos inside r200 of SUBHOST */
+/* 
+ * Subhalos are treated as independent Halos inside r200 of SUBHOST 
+ */
+
 void Setup_Substructure()
 {
 	Sub.First = 1;
@@ -41,6 +44,7 @@ void Setup_Substructure()
 		printf("."); fflush(stdout);
 
 		do {
+			
 			set_subhalo_positions(i); 
 			
 			set_subhalo_properties(i);
@@ -185,7 +189,7 @@ static void set_subhalo_positions(int i)
 
 	double q = erand48(Omp.Seed);
 
-	double r = 1.2 * Halo[SUBHOST].R200 * 
+	double r =1.2* Halo[SUBHOST].R200 * 
 		inverted_subhalo_number_density_profile(q);
 
 	float theta = acos(2 *  erand48(Omp.Seed) - 1);
@@ -249,7 +253,7 @@ static bool reject_subhalo(const int i)
 	if (rho_sub < rho_host*MIN_DENSITY_CONTRAST) 
 		resample = true;
 
-	if (r > 1.2 * Halo[SUBHOST].R200)
+	if (r > Halo[SUBHOST].R200)
 		resample = true;
 
 #ifdef ADD_THIRD_SUBHALO
@@ -279,8 +283,10 @@ static void set_subhalo_properties(const int i)
 	double c_nfw = 0;
 	double rsample = 0;
 
-	for (;;) { // find a and R_Sample iteratively
+	int cnt = 0;
 
+	for (;;) { // find a and R_Sample iteratively
+		
 		double last_a = a;
 
 		rsample = fmax(sampling_radius(i, r_i), tidal_radius(i,r_i) );
@@ -301,6 +307,9 @@ static void set_subhalo_properties(const int i)
 #endif
 
 		if ( fabs( (last_a - a)/a) < 1e-4)
+			break;
+
+		if (cnt++ > 100)
 			break;
 	}
 	

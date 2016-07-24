@@ -64,7 +64,7 @@ void Setup_Substructure()
 		"   Total Npart     = %d \n"
 		"   Total Ngas      = %d \n"
 		"   Total NDM       = %d \n",
-		Sub.Mtotal, Sub.Mtotal / Halo[0].Mtotal200, Sub.MassFraction, 
+		Sub.Mtotal, Sub.Mtotal / Halo[SUBHOST].Mtotal200, Sub.MassFraction, 
 		Sub.Nhalos, Param.Nhalos, Sub.Ntotal, Sub.Npart[0], Sub.Npart[1]);
 
 #ifdef REPORTSUBHALOS
@@ -104,8 +104,11 @@ void Setup_Substructure()
 	return ;
 }
 
-/* We sample the subhalo mass function from Giocoli 2010 MNRAS 408
- * this sets the DM mass in R_sample, not R200 */
+/* 
+ * We sample the subhalo mass function from Giocoli 2010 MNRAS 408
+ * this sets the DM mass in R_sample, not R200 
+ */
+
 static void set_subhalo_masses(const double mass_fraction)
 {	
 	const double mass_limit = Halo[SUBHOST].Mass200[1] * mass_fraction;
@@ -113,6 +116,8 @@ static void set_subhalo_masses(const double mass_fraction)
 	const double qmax = subhalo_mass_function(MIN_SUBHALO_MASS) 
 		/ MIN_SUBHALO_MASS;
 		
+	const double max_subhalo_mass = Sub.MassFraction * Halo[SUBHOST].Mass[1]/10;
+
 	int i = Sub.First;
 
 	while (Sub.Mtotal < mass_limit) {
@@ -140,7 +145,7 @@ static void set_subhalo_masses(const double mass_fraction)
 			if (Sub.Mtotal + mDM > 1.05 * mass_limit)
 				continue;
 			
-			if (mDM > 0.1 * Sub.MassFraction * Halo[SUBHOST].Mass[1]) // too big
+			if (mDM > max_subhalo_mass) // too big
 				continue;
 
 			if (q >= lower_bound)
@@ -185,7 +190,7 @@ static void set_subhalo_positions(int i)
 
 	double q = erand48(Omp.Seed);
 
-	double r = 1.2 * Halo[SUBHOST].R200 * 
+	double r = Halo[SUBHOST].R200 * 
 		inverted_subhalo_number_density_profile(q);
 
 	float theta = acos(2 *  erand48(Omp.Seed) - 1);
@@ -249,7 +254,7 @@ static bool reject_subhalo(const int i)
 	if (rho_sub < rho_host*MIN_DENSITY_CONTRAST) 
 		resample = true;
 
-	if (r > 1.2 * Halo[SUBHOST].R200)
+	if (r > Halo[SUBHOST].R200)
 		resample = true;
 
 #ifdef ADD_THIRD_SUBHALO
@@ -333,6 +338,7 @@ static void set_subhalo_properties(const int i)
 	char tmp[CHARBUFSIZE] = {""};
 
 	Halo[i].Beta = 2.0/3.0; // implicitely assumed
+
 	double rc = Halo[i].Rcore = Gas_core_radius(i, tmp);
 
 	Halo[i].Rho0 = Halo[i].Mass200[0]/(4*pi*p3(rc))/(r200/rc - atan(r200/rc));
@@ -340,19 +346,21 @@ static void set_subhalo_properties(const int i)
 	Halo[i].Mass[0] = 0;
 	
 	Halo[i].Is_Stripped  = true;
-
+	
+	Setup_Mass_Profile(Halo[i].Rho0, Halo[i].Beta,rc, Halo[i].Rcut,false);
+	
 	if (r_i > r_strip) {
 	
 		Halo[i].Is_Stripped  = false;
-		
+
 		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], 
-				Halo[i].Rho0, rc, Halo[i].Rcut,false);
+				Halo[i].Rho0, Halo[i].Beta,rc, Halo[i].Rcut,false);
 	}
 
 #ifdef ADD_THIRD_SUBHALO
 	if (i == Sub.First)
 		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], 
-				Halo[i].Rho0, rc, Halo[i].Rcut, false);
+				Halo[i].Rho0, Halo[i].Beta, rc, Halo[i].Rcut, false);
 #endif
 
 	Halo[i].Mtotal = Halo[i].Mass[0] + Halo[i].Mass[1];
@@ -383,8 +391,9 @@ static void set_subhalo_particle_numbers()
 		Sub.Ntotal += npart;
 		Sub.Npart[0] += nGas;
 		Sub.Npart[1] += nDM;
-	}
 
+	}
+	
 	Halo[SUBHOST].Ntotal -= Sub.Ntotal; // correct <0> particle numbers
 	Halo[SUBHOST].Npart[0] -= Sub.Npart[0];
 	Halo[SUBHOST].Npart[1] -= Sub.Npart[1];

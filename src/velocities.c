@@ -2,7 +2,7 @@
 #include <gsl/gsl_spline.h>
 #include "globals.h"
 
-#define NTABLE 512
+#define NTABLE 1024
 #define NSAMPLE (NTABLE*4) // oversample integrand
 #define RMIN 0.1 // smallest radius for which we have f(E)
 
@@ -25,7 +25,7 @@ static void set_subhalo_bulk_velocities();
 
 static double G = 0; 
 
-static double Infinity = 1e30; // stay within double precision
+static double Infinity = 1e20;
 
 typedef struct {
 	double E;
@@ -170,10 +170,7 @@ static double sph_kernel_wc2(const float r, const float h)
 /* return spline interpolation from tables fE and E */
 static double distribution_function(const double E)
 {
-	if (E < 1)
-		return 0; // r >> Boxsize (Gpc), E << Psi(Boxsize)
-	else
-		return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
+	return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
 }
 
 /* 
@@ -238,13 +235,12 @@ static void calc_distribution_function_table(int iCluster)
 
 	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
 
-	rmax = 1e10;
 	rstep = log10(rmax/rmin) / NTABLE; // only consider 10 Mpc radius
 	
 	const double sqrt8 = sqrt(8);
 	double err = 0;
 	
-	#pragma omp for
+	#pragma omp single //for
 	for (int i = 0; i < NTABLE; i++) {
 
 		double r = rmin * pow(10, i*rstep);
@@ -261,6 +257,8 @@ static void calc_distribution_function_table(int iCluster)
 	}
 
 	fE[0] = fE[1]; // avoid singularity at r=0, E=Emax
+
+	E[NTABLE-1] = 0; // r == inf, f(E) -> 0
 	fE[NTABLE-1] = 0;
 
 	gsl_integration_workspace_free(w);
@@ -283,14 +281,8 @@ static void calc_distribution_function_table(int iCluster)
 		x[i] = E[NTABLE-i-1];
 		
 		y[i] = fE[NTABLE-i-1];
-
 	}
 
-	for (int i = 1; i < NTABLE; i++)
-		if (x[i-1] >= x[i] )
-			x[i] = x[i-1]*1.01;
-		
-	
 	#pragma omp parallel
 	gsl_spline_init(fE_params.spline, x, y, NTABLE);
 	
@@ -306,8 +298,8 @@ static void calc_distribution_function_table(int iCluster)
 		double fe = distribution_function(E);
 
 		printf("%g %g %g \n", solution, fe, fabs(fe-solution)/solution);
-	}
-*/
+	} */
+
 	return ;
 }
 
@@ -325,7 +317,9 @@ static double eddington_integrant(double psi, void *params)
 
 	const double dRhodPsi2 = gsl_spline_eval_deriv2(p->spline, psi, p->acc);
 
-	return dRhodPsi2 / sqrt(p->E - psi);
+	double result = dRhodPsi2 / sqrt(p->E - psi);
+	
+	return result;
 }
 
 /* 
@@ -425,28 +419,34 @@ static void setup_potential_profile(int i)
 	gsl_F.params = (void *) &ip;
 
 	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(2048);
+	gsl_workspace = gsl_integration_workspace_alloc(4096);
 
 	double psi_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 
-	gsl_integration_qag(&gsl_F, 0, 1e10, 0, 1e-3, 2048, 
-			GSL_INTEG_GAUSS41, gsl_workspace, &psi_table[0], &error);
-	
-	double rmin = 0.1;
-	double rmax = 1e50;
+	double rmin = 1;
+	double rmax = 1e10;
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 
-	for (int j = 1; j < NTABLE; j++) {
+	gsl_integration_qag(&gsl_F, 0, rmax, 0, 1e-6, 4096, 
+			GSL_INTEG_GAUSS41, gsl_workspace, &psi_table[0], &error);
+
+	for (int j = 1; j < NTABLE-1; j++) {
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, 2048, 
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-6, 4096, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 
-		psi_table[j] = -1*(psi_table[j] - psi_table[0]); // gauge r->inf, psi->0
+		psi_table[j] = -1*(psi_table[j] - psi_table[0]); 
+													// gauge r->inf, psi->0
 
+		if (psi_table[j] > psi_table[j-1] || psi_table[j] < 0)
+			psi_table[j] = psi_table[j-1] * 0.95; // behave well for largest r
 	}
+
+	psi_table[NTABLE-1] = 0;
+	r_table[NTABLE-1] = rmax;
 
 	#pragma omp parallel
 	{

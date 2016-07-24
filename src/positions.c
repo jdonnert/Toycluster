@@ -32,7 +32,7 @@ void Make_positions()
 	        printf("<%d> ", i); 
 		else
 			printf(".");
-
+		
 		fflush(stdout);
 
 		sample_DM_particles(i);

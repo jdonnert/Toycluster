@@ -652,13 +652,9 @@ void Setup_Mass_Profile(const double rho0, const double rc, const double beta,
 	
 	gsl_function gsl_F = { 0 };
 	
-	#pragma omp parallel
-	{
-	
 	gsl_integration_workspace *gsl_workspace = NULL;
 	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 
-	#pragma omp for
 	for (int i = 1; i < NTABLE; i++) {
 		
 		double error = 0;
@@ -673,8 +669,12 @@ void Setup_Mass_Profile(const double rho0, const double rc, const double beta,
 		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-3, NTABLE, 
 				GSL_INTEG_GAUSS41, gsl_workspace, &m_table[i], &error);
 
-		m_table[i] = fmax(m_table[i],m_table[i-1]); // integrator may fluctuate
+		m_table[i] = fmax(m_table[i],m_table[i-1]*1.01); 
+					// integrator may fluctuate
 	}
+
+	#pragma omp parallel
+	{
 
 	M_Acc  = gsl_interp_accel_alloc();
 

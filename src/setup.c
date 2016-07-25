@@ -1,7 +1,21 @@
+#include <gsl/gsl_integration.h>
+#include <gsl/gsl_spline.h>
+
 #include "globals.h"
 
+static struct int_param {
+	double rho0;
+	double beta;
+	double rc;
+	double rcut;
+	double cuspy;
+} ip;
+
 /* 
- * Set all relevant parameters for the collision 
+ * Set all relevant parameters for the collision. This is a mess.
+ * We first find R200 from the baryon fraction in R200 and the total mass
+ * in R200 given the profiles and assumptions on the scaling of the cluster 
+ * parameters c, beta, rho0 and rc with M200.
  */
 
 void Setup()
@@ -28,6 +42,10 @@ void Setup()
 		Param.Nhalos = 2;
 
     for (int i = 0; i < Param.Nhalos; i++) { 
+
+#ifndef GIVEPARAMS
+		Halo[i].Beta = 2.0/3.0; // std, Donnert 2014
+#endif
 
         Halo[i].Mass200[1] = Halo[i].Mtotal200 / (1+bf);
         Halo[i].Mass200[0] = Halo[i].Mtotal200 - Halo[i].Mass200[1];
@@ -57,9 +75,11 @@ void Setup()
 			Halo[i].R_Sample[1] = Param.Boxsize/2;
 			Halo[i].R_Sample[0] = sqrt(3)*Param.Boxsize/2;
 		}
+
 		double rs_gas = Halo[i].R_Sample[0];
 		double rs_dm = Halo[i].R_Sample[1];
         double a = Halo[i].A_hernq;
+        double beta = Halo[i].Beta;
 		double m200_dm = Halo[i].Mass200[1];
 		double m200_gas = Halo[i].Mass200[0];
         double r200 = Halo[i].R200;
@@ -70,13 +90,16 @@ void Setup()
 		double rc = Halo[i].Rcore;
 		int cuspy = Halo[i].Have_Cuspy;
 
-       	Halo[i].Rho0 = m200_gas / Mass_profile(r200, 1, rc, rcut, cuspy);
-		
+		Setup_Mass_Profile(1, rc, beta, rcut, cuspy);
+
+       	Halo[i].Rho0 = m200_gas / Mass_profile(r200, 1, beta, rc, rcut, cuspy);
 		double rho0 = Halo[i].Rho0;
 
 		Halo[i].MassCorrFac = 1/(1 + 2*a/rs_dm + p2(a/rs_dm));
 
-	    Halo[i].Mass[0] = Mass_profile(rs_gas, rho0, rc, rcut, cuspy);
+		Setup_Mass_Profile(rho0, rc, beta, rcut, cuspy);
+
+	    Halo[i].Mass[0] = Mass_profile(rs_gas, rho0, beta, rc, rcut, cuspy);
 
         Halo[i].Mass[1] = m200_dm * (1 + 2*a/r200 + p2(a/r200)) 
 			* Halo[i].MassCorrFac; // correct for finite R_sample != infty
@@ -103,7 +126,7 @@ void Setup()
                "   rho0_gas          = %g g/cm^3\n"
                "   rho0_gas          = %g [gadget]\n"
                "   rho0_gas          = %g [cm^-3]\n"
-               "   beta              = 2/3 \n"
+               "   beta              = %g \n"
                "   rc                = %g kpc\n"
                ,i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1]
 			   , Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1]
@@ -111,7 +134,7 @@ void Setup()
                , Halo[i].C_nfw, Halo[i].R200*Unit.Length/kpc2cgs
                , Halo[i].A_hernq*Unit.Length/kpc2cgs
                , Density(Halo[i].Rho0), Halo[i].Rho0
-			   , Density(Halo[i].Rho0) / (0.6 * m_p) 
+			   , Density(Halo[i].Rho0) / (0.6 * m_p), Halo[i].Beta 
 			   , Halo[i].Rcore);
 
 #ifdef DOUBLE_BETA_COOL_CORES
@@ -564,15 +587,147 @@ double Gas_core_radius(const int i, char *string)
 	return rc;
 }
 
-double 
-Hernquist_density_profile(const double m, const double a, const double r)
+/* 
+ * Double beta profile at rc and rcut 
+ */
+
+double Gas_density_profile(const double r, const double rho0, const double beta,
+		const double rc, const double rcut, const bool Is_Cuspy)
+{
+	double rho = rho0 * pow(1 + p2(r/rc), -3.0/2.0*beta) 
+				/ (1 + p3(r/rcut) * (r/rcut));
+
+#ifdef DOUBLE_BETA_COOL_CORES
+
+	double rho0_cc = rho0 * Param.Rho0_Fac;
+	double rc_cc = rc / Param.Rc_Fac;
+	
+	if (Is_Cuspy)
+		rho += rho0_cc / (1 + p2(r/rc_cc)) / (1 + p3(r/rcut) * (r/rcut));
+
+#endif // DOUBLE_BETA_COOL_CORES
+
+	return rho;
+}
+
+/*
+ * Compute the mass profile from the gas density profile by numerical 
+ * integration and cubic spline interpolation. This has to be called once 
+ * before the mass profile of a halo is used, to set the spline variables.
+ */
+
+#define NTABLE 1024
+
+static gsl_spline *M_Spline = NULL;
+static gsl_interp_accel *M_Acc = NULL;
+#pragma omp threadprivate(M_Spline, M_Acc)
+
+static gsl_spline *Minv_Spline = NULL;
+static gsl_interp_accel *Minv_Acc = NULL;
+#pragma omp threadprivate(Minv_Spline, Minv_Acc)
+
+static double Rmax = 0;
+
+double m_integrant(double r, void * param)
+{
+	struct int_param *ip = ((struct int_param *) param); 
+
+	return 4*pi*r*r*Gas_density_profile(r, ip->rho0, ip->beta, ip->rc, 
+										   ip->rcut, ip->cuspy);
+}
+
+void Setup_Mass_Profile(const double rho0, const double rc, const double beta, 
+		const double rcut, const double cuspy)
+{
+	if (rho0 == 0)
+		return ;
+
+	double m_table[NTABLE] = { 0 };
+	double r_table[NTABLE] = { 0 };
+	double dr_table[NTABLE] = { 0 };
+
+	double rmin = 0.1;
+	Rmax = Param.Boxsize;
+	double log_dr = ( log10(Rmax/rmin) ) / (NTABLE - 1);
+	
+	gsl_function gsl_F = { 0 };
+	
+	#pragma omp parallel
+	{
+	
+	gsl_integration_workspace *gsl_workspace = NULL;
+	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
+
+	#pragma omp for
+	for (int i = 1; i < NTABLE; i++) {
+		
+		double error = 0;
+
+		r_table[i] = rmin * pow(10, log_dr * i);
+
+		struct int_param ip = { rho0, beta, rc, rcut, cuspy };
+
+		gsl_F.function = &m_integrant;
+		gsl_F.params = (void *) &ip;
+
+		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-3, NTABLE, 
+				GSL_INTEG_GAUSS41, gsl_workspace, &m_table[i], &error);
+
+		m_table[i] = fmax(m_table[i],m_table[i-1]); // integrator may fluctuate
+	}
+
+	M_Acc  = gsl_interp_accel_alloc();
+
+	M_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	gsl_spline_init(M_Spline, r_table, m_table, NTABLE);
+
+	Minv_Acc  = gsl_interp_accel_alloc();
+
+	Minv_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	gsl_spline_init(Minv_Spline, m_table, r_table, NTABLE);
+
+	} // omp parallel
+
+	return ;
+}
+
+double Mass_profile(const double r_in, const double rho0, const double beta, 
+		const double rc, const double rcut, const bool Is_Cuspy)
+{
+	if (rho0 == 0)
+		return 0;
+
+	double r = r_in;
+
+	if (r > Rmax)
+		r = Rmax;
+	
+	return  gsl_spline_eval(M_Spline, r, M_Acc);
+}
+
+/* 
+ * For gas particles we need to invert M(<r)/M
+ * which is not analytical for this model.
+ * instead we write M(<r)/M into a table and 
+ * invert numerically with linear interpolation. 
+ */
+
+double Invert_Mass_Profile(double M)
+{
+	return gsl_spline_eval(Minv_Spline, M, Minv_Acc);;
+}
+
+double Hernquist_density_profile(const double m, const double a, const double r)
 {
 	return m / (2*pi) * a/(r*p3(r+a));
 }
 
-/* return M(<= R) of a beta profile with beta=2/3 */
-double Mass_profile(const double r, const double rho0, const double rc, 
-		const double rcut, const bool Is_Cuspy)
+/* 
+ * return M(<= R) of a beta profile with beta=2/3 
+ */
+
+double Mass_profile_23(const double r, const double rho0, const double beta, 
+		const double rc, const double rcut, const bool Is_Cuspy)
 {	
 	const double r2 = p2(r);
 	const double rc2 = p2(rc);
@@ -606,23 +761,6 @@ double Mass_profile(const double r, const double rho0, const double rc,
 	return 4 * pi * Mr;
 }
 
-/* Double beta profile at rc and rcut */
-double Gas_density_profile(const double r, const double rho0, 
-		const double rc, const double rcut, const bool Is_Cuspy)
-{
-	double rho = rho0 / (1 + p2(r/rc)) / (1 + p3(r/rcut) * (r/rcut));
 
-#ifdef DOUBLE_BETA_COOL_CORES
-
-	double rho0_cc = rho0 * Param.Rho0_Fac;
-	double rc_cc = rc / Param.Rc_Fac;
-	
-	if (Is_Cuspy)
-		rho += rho0_cc / (1 + p2(r/rc_cc)) / (1 + p3(r/rcut) * (r/rcut));
-
-#endif // DOUBLE_BETA_COOL_CORES
-
-	return rho;
-}
 
 

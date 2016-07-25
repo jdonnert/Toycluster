@@ -74,7 +74,7 @@ double Internal_Energy_Profile_Analytic(const int i, const double d)
     double a = Halo[i].A_hernq;
     double rc = Halo[i].Rcore;
     double rmax = Param.Boxsize; // "open" T boundary
-    double Mdm = 1.10 * Halo[i].Mass[1];
+    double Mdm = Halo[i].Mass[1];
 
 	double u = G / ( (adiabatic_index-1) ) * ( 1 + p2(d/rc) ) *
                 ( Mdm * (F1(rmax, rc, a) - F1(d, rc, a))
@@ -105,14 +105,15 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 
 	double rho0 = Halo[i].Rho0;
 	double rc = Halo[i].Rcore;
-	double rcut = Param.Boxsize;
+	double beta = Halo[i].Beta;
+	double rcut = Halo[i].Rcut;
 	int is_cuspy = Halo[i].Have_Cuspy;
 	double a = Halo[i].A_hernq;
 	double Mdm = Halo[i].Mass[1];
 
-	double rho_gas = Gas_density_profile(r, rho0, rc, rcut, is_cuspy);
-	double Mr_Gas = Mass_profile(r, rho0, rc, rcut, is_cuspy);
-	double Mr_DM = 1.1*Mdm * r*r/p2(r+a);
+	double rho_gas = Gas_density_profile(r, rho0, beta, rc, rcut, is_cuspy);
+	double Mr_Gas = Mass_profile(r, rho0, beta, rc, rcut, is_cuspy);
+	double Mr_DM = Mdm * r*r/p2(r+a);
 
 	return rho_gas /(r*r) * (Mr_Gas + Mr_DM);
 }
@@ -127,7 +128,7 @@ static void setup_internal_energy_profile(const int i)
 
 	double rmin = 0.1;
 	double rmax = Param.Boxsize * sqrt(3);
-	double dr = ( log(rmax/rmin) ) / (TABLESIZE-1);
+	double dr = ( log10(rmax/rmin) ) / (TABLESIZE-1);
 
 	#pragma omp parallel 
 	{
@@ -140,27 +141,32 @@ static void setup_internal_energy_profile(const int i)
 	
 		double error = 0;
 
-		double r = rmin * exp(dr * j);
+		double r = rmin * pow(10, dr * j);
 		
 		r_table[j] = r;
 
 		gsl_F.function = &u_integrant;
 		gsl_F.params = (void *) &i;
 
-		//printf("%d %g %g \n", j, r, u_integrant(r, (void *)&i ) );
-		
 		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-3, 2*TABLESIZE, 
 				GSL_INTEG_GAUSS41, gsl_workspace, &u_table[j], &error);
 
 		double rho0 = Halo[i].Rho0;
 		double rc = Halo[i].Rcore;
-		double rcut = Param.Boxsize;
+		double beta = Halo[i].Beta;
+		double rcut = Halo[i].Rcut;
 		int is_cuspy = Halo[i].Have_Cuspy;
 	
-		double rho_gas = Gas_density_profile(r, rho0, rc, rcut, is_cuspy);
+		double rho_gas = Gas_density_profile(r, rho0, beta, rc, rcut, is_cuspy);
 
 		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
+		
+		//printf("%d %g %g %g %g \n", j,r, rho_gas, u_table[j], 
+		//						u_integrant(r, (void *)&i ));
 	}
+
+	u_table[0] = u_table[1];
+	u_table[TABLESIZE-1] = 0;
 
 	gsl_integration_workspace_free(gsl_workspace);
 	

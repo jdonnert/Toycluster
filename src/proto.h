@@ -38,11 +38,16 @@ double Hernquist_density_profile(const double, const double, const double);
 double Beta_density_profile(const double, const double, const double, 
 		const double);
 double Mass_profile(const double, const double, const double, 
-		const double, const bool); 
+		const double, const double, const bool); 
+double Invert_Mass_Profile(double); 
+double Mass_profile_23(const double, const double, const double, 
+		const double, const double, const bool); 
 double Gas_density_profile(const double, const double, const double, 
-		const double, const bool); 
+		const double, const double, const bool); 
 int Halo_containing(const int, const float,const float,const float);
 float Global_density_model(const int);
+void Setup_Mass_Profile(const double, const double, const double, const double,
+		const double);
 
 
 /* Helper Monkeys */

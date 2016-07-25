@@ -6,11 +6,14 @@
 #define NSAMPLE (NTABLE*4) // oversample integrand
 #define RMIN 0.1 // smallest radius for which we have f(E)
 
+
 static void calc_distribution_function_table(int);
+static void setup_potential_profile(int);
 static double distribution_function(const double);
 static double eddington_integrant(double, void *);
 static double potential_profile(const int, const float);
-static double gas_potential_profile(const int i, const float r);
+static double gas_potential_profile(const int i, const double r);
+static double gas_potential_profile_23(const int i, const float r);
 static double dm_density_profile(const int, const float);
 static double dm_potential_profile(const int, const float);
 static double hernquist_distribution_func(const int, const double);
@@ -21,6 +24,8 @@ static void set_subhalo_bulk_velocities();
 #endif
 
 static double G = 0; 
+
+static double Infinity = 1e30; // stay within double precision
 
 typedef struct {
 	double E;
@@ -100,7 +105,7 @@ void Make_velocities()
         } // for ipart
 
 #if defined(SUBSTRUCTURE) && defined(SLOW_SUBSTRUCTURE)
-		if(i == 0) // at main cluster only, because we take it f(E)
+		if(i == 0) // at main cluster only, because we take its f(E)
 			set_subhalo_bulk_velocities();
 #endif
 		
@@ -129,9 +134,12 @@ void Make_velocities()
 			#pragma omp parallel for schedule(dynamic)  
 	        for (int ipart = 0; ipart < Halo[i].Npart[0]; ipart++) { // gas 
 				
-				double dx = Halo[i].Gas[ipart].Pos[0] - Halo[i].D_CoM[0] - boxhalf;
-				double dy = Halo[i].Gas[ipart].Pos[1] - Halo[i].D_CoM[1] - boxhalf;
-				double dz = Halo[i].Gas[ipart].Pos[2] - Halo[i].D_CoM[2] - boxhalf;
+				double dx = Halo[i].Gas[ipart].Pos[0] - Halo[i].D_CoM[0] 
+					- boxhalf;
+				double dy = Halo[i].Gas[ipart].Pos[1] - Halo[i].D_CoM[1] 
+					- boxhalf;
+				double dz = Halo[i].Gas[ipart].Pos[2] - Halo[i].D_CoM[2] 
+					- boxhalf;
 
 				double r = sqrt(dx*dx + dy*dy + dz*dz);
 
@@ -162,7 +170,10 @@ static double sph_kernel_wc2(const float r, const float h)
 /* return spline interpolation from tables fE and E */
 static double distribution_function(const double E)
 {
-	return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
+	if (E < 1)
+		return 0; // r >> Boxsize (Gpc), E << Psi(Boxsize)
+	else
+		return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
 }
 
 /* 
@@ -178,23 +189,30 @@ static double distribution_function(const double E)
 
 static void calc_distribution_function_table(int iCluster)
 {
-	const double rmin = RMIN; // zero wont work 
-	const double rmax = 1e10 * Param.Boxsize; // large val for accuracy
+	double rmin = RMIN; // zero wont work 
+	double rmax = Infinity; // large val for accuracy
 
-	double rstep = log10(1e5 * rmax) / NSAMPLE; // good up to one Gpc
+	double rstep = log10(rmax/rmin) / NSAMPLE; // good up to one Gpc
 
 	double psi[NSAMPLE] = { 0 }, rho[NSAMPLE] = { 0 };
-	
+
+	setup_potential_profile(iCluster);
+
 	#pragma omp parallel for  
-	for (int i = 0; i < NSAMPLE; i++) {
+	for (int i = 1; i < NSAMPLE; i++) {
 		
-		double r = rmin * pow(10, (i)*rstep) - 0.999;
+		double r = rmin * pow(10, i*rstep);
 
 		rho[i] = dm_density_profile(iCluster, r);
 
 		psi[i] = potential_profile(iCluster, r); 
 	}
 	
+	rho[0] = dm_density_profile(iCluster, 0.1);
+	psi[0] = potential_profile(iCluster, 0.1);
+
+	psi[NSAMPLE-1] = 0; // make sure  E==0 is covered
+
 	double E[NTABLE] = { 0 }, 
 		   fE[NTABLE] = { 0 };
 
@@ -220,10 +238,12 @@ static void calc_distribution_function_table(int iCluster)
 
 	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
 
+	rmax = 1e10;
 	rstep = log10(rmax/rmin) / NTABLE; // only consider 10 Mpc radius
 	
 	const double sqrt8 = sqrt(8);
-
+	double err = 0;
+	
 	#pragma omp for
 	for (int i = 0; i < NTABLE; i++) {
 
@@ -232,16 +252,16 @@ static void calc_distribution_function_table(int iCluster)
 		int_params.E = E[i] = potential_profile(iCluster, r);
 
 		gsl_function F = {&eddington_integrant, &int_params};
-		
-		double error = 0;
 
-		gsl_integration_qags(&F, 0, E[i], 0, 1e-4, NSAMPLE, w, &fE[i], &error); 
-
+		gsl_integration_qags(&F, 0, E[i], 0, 1e-6, NSAMPLE, w, &fE[i], &err); 
 		fE[i] /= sqrt8 * pi * pi;
-	
-	//printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i], 
-	//			hernquist_distribution_func(iCluster, E[i]), error/fE[i]);
+		
+		//printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i],
+		//		hernquist_distribution_func(iCluster, E[i]), err/fE[i]);
 	}
+
+	fE[0] = fE[1]; // avoid singularity at r=0, E=Emax
+	fE[NTABLE-1] = 0;
 
 	gsl_integration_workspace_free(w);
 
@@ -265,16 +285,18 @@ static void calc_distribution_function_table(int iCluster)
 		y[i] = fE[NTABLE-i-1];
 
 	}
+
 	for (int i = 1; i < NTABLE; i++)
 		if (x[i-1] >= x[i] )
 			x[i] = x[i-1]*1.01;
+		
 	
 	#pragma omp parallel
 	gsl_spline_init(fE_params.spline, x, y, NTABLE);
 	
-	/*for (int i = 0; i < 2*NTABLE; i++) {
+/*	for (int i = 0; i < NTABLE; i++) {
 		
-		double r = rmin * pow(10, i*rstep/2.01);
+		double r = rmin * pow(10, i*rstep);
 
 		double E = potential_profile(iCluster, r);
 
@@ -284,8 +306,8 @@ static void calc_distribution_function_table(int iCluster)
 		double fe = distribution_function(E);
 
 		printf("%g %g %g \n", solution, fe, fabs(fe-solution)/solution);
-	}*/
-
+	}
+*/
 	return ;
 }
 
@@ -298,11 +320,11 @@ static double eddington_integrant(double psi, void *params)
 {
 	const interpolation_parameters *p = params;
 
-	if (psi == p->E)
+	if (psi >= p->E)
 		return 0;
 
 	const double dRhodPsi2 = gsl_spline_eval_deriv2(p->spline, psi, p->acc);
-	
+
 	return dRhodPsi2 / sqrt(p->E - psi);
 }
 
@@ -320,12 +342,8 @@ static double dm_density_profile(const int i, const float r)
 
 static double potential_profile(const int i, const float r)
 {
-	const double rho0 = Halo[i].Rho0;
-	const double rc = Halo[i].Rcore;
-	const double rcut = Halo[i].Rcut;
+	double psi = dm_potential_profile(i, r); // DM generated potential
 	
-	double psi = dm_potential_profile(i,r); // DM generated potential
-
 	if (Halo[i].Npart[0]) // Gas generated potential
 		psi += gas_potential_profile(i,r);  // exponential cut off near rcut
 
@@ -364,7 +382,94 @@ double dm_potential_profile(const int i, const float r)
 	return psi;
 }
 
-double gas_potential_profile(const int i, const float r)
+/*
+ * This sets the grav. potential from the gas density.
+ */
+
+static gsl_spline *Psi_Spline = NULL;
+static gsl_interp_accel *Psi_Acc = NULL;
+#pragma omp threadprivate(Psi_Spline, Psi_Acc)
+
+struct int_param {
+	double rho0;
+	double beta;
+	double rc;
+	double rcut;
+	double cuspy;
+};
+
+double psi_integrant(double r, void *param)
+{
+	struct int_param *ip = ((struct int_param *) param); 
+
+	return G/r/r * Mass_profile(r, ip->rho0, ip->beta, ip->rc, 
+							   	     ip->rcut, ip->cuspy);
+}
+
+static void setup_potential_profile(int i)
+{
+	double rho0 = Halo[i].Rho0;
+	double rc = Halo[i].Rcore;
+	double beta = Halo[i].Beta;
+	double rcut = Halo[i].Rcut;
+	double cuspy = Halo[i].Have_Cuspy;
+
+	Setup_Mass_Profile(rho0, rc, beta, rcut, cuspy);
+
+	const struct int_param ip = { rho0, beta, rc, rcut, cuspy };
+	
+	double error = 0;
+
+	gsl_function gsl_F = { 0 };
+	gsl_F.function = &psi_integrant;
+	gsl_F.params = (void *) &ip;
+
+	gsl_integration_workspace *gsl_workspace = NULL;
+	gsl_workspace = gsl_integration_workspace_alloc(2048);
+
+	double psi_table[NTABLE] = { 0 };
+	double r_table[NTABLE] = { 0 };
+
+	gsl_integration_qag(&gsl_F, 0, 1e10, 0, 1e-3, 2048, 
+			GSL_INTEG_GAUSS41, gsl_workspace, &psi_table[0], &error);
+	
+	double rmin = 0.1;
+	double rmax = 1e50;
+	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
+
+	for (int j = 1; j < NTABLE; j++) {
+
+		r_table[j] = rmin * pow(10, log_dr * j);
+
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, 2048, 
+				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
+
+		psi_table[j] = -1*(psi_table[j] - psi_table[0]); // gauge r->inf, psi->0
+
+	}
+
+	#pragma omp parallel
+	{
+
+	Psi_Acc  = gsl_interp_accel_alloc();
+
+	Psi_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	gsl_spline_init(Psi_Spline, r_table, psi_table, NTABLE);
+		
+	} // omp parallel
+
+	return ;
+}
+
+static double gas_potential_profile(const int i, const double r)
+{
+	if (r > 1e10)
+		return 0; // only noise in the spline, psi close to 0
+	else
+		return gsl_spline_eval(Psi_Spline, r, Psi_Acc);
+}
+
+static double gas_potential_profile_23(const int i, const float r)
 {
 	if (r > 2*Halo[i].Rcut)
 		return 0;

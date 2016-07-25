@@ -384,39 +384,22 @@ static gsl_spline *Psi_Spline = NULL;
 static gsl_interp_accel *Psi_Acc = NULL;
 #pragma omp threadprivate(Psi_Spline, Psi_Acc)
 
-struct int_param {
-	double rho0;
-	double beta;
-	double rc;
-	double rcut;
-	double cuspy;
-};
-
 double psi_integrant(double r, void *param)
 {
-	struct int_param *ip = ((struct int_param *) param); 
+	int i = *((int *) param);
 
-	return G/r/r * Mass_profile(r, ip->rho0, ip->beta, ip->rc, 
-							   	     ip->rcut, ip->cuspy);
+	return G/r/r * Mass_profile(r, i);
 }
 
 static void setup_potential_profile(int i)
 {
-	double rho0 = Halo[i].Rho0;
-	double rc = Halo[i].Rcore;
-	double beta = Halo[i].Beta;
-	double rcut = Halo[i].Rcut;
-	double cuspy = Halo[i].Have_Cuspy;
+	Setup_Mass_Profile(i);
 
-	Setup_Mass_Profile(rho0, rc, beta, rcut, cuspy);
-
-	const struct int_param ip = { rho0, beta, rc, rcut, cuspy };
-	
 	double error = 0;
 
 	gsl_function gsl_F = { 0 };
 	gsl_F.function = &psi_integrant;
-	gsl_F.params = (void *) &ip;
+	gsl_F.params = (void *) &i;
 
 	gsl_integration_workspace *gsl_workspace = NULL;
 	gsl_workspace = gsl_integration_workspace_alloc(4096);

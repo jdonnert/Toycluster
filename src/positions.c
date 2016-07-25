@@ -92,8 +92,7 @@ static void sample_Gas_particles(const int i)
 	const double dCoM[3] ={Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
 	const double boxhalf = Param.Boxsize/2;
 
-	Setup_Mass_Profile(Halo[i].Rho0, Halo[i].Rcore, Halo[i].Beta, Halo[i].Rcut
-			, Halo[i].Have_Cuspy);
+	Setup_Mass_Profile(i);
 
 	#pragma omp parallel for
    	for (size_t ipart = 0; ipart < Halo[i].Npart[0]; ipart++) {

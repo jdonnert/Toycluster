@@ -10,10 +10,11 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
 OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
+
 OPT	+= -DSUBSTRUCTURE	# add substructure
-OPT += -DSUBHOST=1		# host halos
+OPT += -DSUBHOST=0		# host halos
 OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
-#OPT += -DREPORTSUBHALOS		# print info about all subhaloes
+OPT += -DREPORTSUBHALOS		# print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
 #OPT  += -DTHIRD_HALO_ONLY
@@ -33,7 +34,7 @@ GSL_LIBS = $(LDFLAGS)
 
 ifeq ($(SYSTYPE),DARWIN)
 CC      	=  icc
-OPTIMIZE	= -fast -m64  -xhost
+OPTIMIZE	=-fast -g -m64  -xhost
 GSL_INCL 	= $(CPPFLAGS)
 GSL_LIBS	= -L/Users/jdonnert/Dev/lib
 endif

@@ -285,7 +285,7 @@ static void set_subhalo_properties(const int i)
 	double rsample = 0;
 
 	for (;;) { // find a and R_Sample iteratively
-
+		
 		double last_a = a;
 
 		rsample = fmax(sampling_radius(i, r_i), tidal_radius(i,r_i) );
@@ -294,8 +294,7 @@ static void set_subhalo_properties(const int i)
 
 		c_nfw = Concentration_parameter(i);
 
-		Halo[i].Rs = 
-			nfw_scale_radius(c_nfw, Halo[i].Mass[1], rsample);
+		Halo[i].Rs = nfw_scale_radius(c_nfw, Halo[i].Mass[1], rsample);
 
 		a = Halo[i].Rs*sqrt(2*(log(1+c_nfw) - c_nfw/(1+c_nfw)));
 
@@ -347,20 +346,18 @@ static void set_subhalo_properties(const int i)
 	
 	Halo[i].Is_Stripped  = true;
 	
-	Setup_Mass_Profile(Halo[i].Rho0, Halo[i].Beta,rc, Halo[i].Rcut,false);
+	Setup_Mass_Profile(i);
 	
 	if (r_i > r_strip) {
 	
 		Halo[i].Is_Stripped  = false;
 
-		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], 
-				Halo[i].Rho0, Halo[i].Beta,rc, Halo[i].Rcut,false);
+		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], i);
 	}
 
 #ifdef ADD_THIRD_SUBHALO
 	if (i == Sub.First)
-		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], 
-				Halo[i].Rho0, Halo[i].Beta, rc, Halo[i].Rcut, false);
+		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], i);
 #endif
 
 	Halo[i].Mtotal = Halo[i].Mass[0] + Halo[i].Mass[1];

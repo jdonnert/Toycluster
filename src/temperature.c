@@ -32,7 +32,7 @@ void Make_temperatures()
             double r = sqrt(dx*dx + dy*dy + dz*dz);
 
             double u = Internal_Energy_Profile(i, r);
-			//double u_ana = Internal_Energy_Profile_Analytic(i, r);
+			double u_ana = Internal_Energy_Profile_Analytic(i, r);
 			
 			Halo[i].SphP[ipart].U = u;
 		}
@@ -112,7 +112,7 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 	double Mdm = Halo[i].Mass[1];
 
 	double rho_gas = Gas_density_profile(r, rho0, beta, rc, rcut, is_cuspy);
-	double Mr_Gas = Mass_profile(r, rho0, beta, rc, rcut, is_cuspy);
+	double Mr_Gas = Mass_profile(r, i);
 	double Mr_DM = Mdm * r*r/p2(r+a);
 
 	return rho_gas /(r*r) * (Mr_Gas + Mr_DM);
@@ -129,6 +129,8 @@ static void setup_internal_energy_profile(const int i)
 	double rmin = 0.1;
 	double rmax = Param.Boxsize * sqrt(3);
 	double dr = ( log10(rmax/rmin) ) / (TABLESIZE-1);
+
+	Setup_Mass_Profile(i);
 
 	#pragma omp parallel 
 	{
@@ -148,7 +150,7 @@ static void setup_internal_energy_profile(const int i)
 		gsl_F.function = &u_integrant;
 		gsl_F.params = (void *) &i;
 
-		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-3, 2*TABLESIZE, 
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-5, 2*TABLESIZE, 
 				GSL_INTEG_GAUSS41, gsl_workspace, &u_table[j], &error);
 
 		double rho0 = Halo[i].Rho0;
@@ -166,7 +168,7 @@ static void setup_internal_energy_profile(const int i)
 	}
 
 	u_table[0] = u_table[1];
-	u_table[TABLESIZE-1] = 0;
+	//u_table[TABLESIZE-1] = 0;
 
 	gsl_integration_workspace_free(gsl_workspace);
 	

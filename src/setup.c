@@ -653,10 +653,7 @@ void Setup_Mass_Profile(const int j)
 
 	double rmin = 0.1;
 
-	//if (j == 0)
-	//	Rmax = Param.Boxsize;
-	//else
-		Rmax = Halo[j].R_Sample[0]*1.1; // include R_Sample
+	Rmax = Halo[j].R_Sample[0]*1.1; // include R_Sample
 
 	double log_dr = ( log10(Rmax/rmin) ) / (NTABLE - 1);
 	
@@ -708,13 +705,6 @@ double Mass_profile(const double r_in, const int i)
 
 	return  gsl_spline_eval(M_Spline, r, M_Acc);
 }
-
-/* 
- * For gas particles we need to invert M(<r)/M
- * which is not analytical for this model.
- * instead we write M(<r)/M into a table and 
- * invert numerically with linear interpolation. 
- */
 
 double Invert_Mass_Profile(double M)
 {

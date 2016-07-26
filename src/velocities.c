@@ -6,7 +6,6 @@
 #define NSAMPLE (NTABLE*4) // oversample integrand
 #define RMIN 0.1 // smallest radius for which we have f(E)
 
-
 static void calc_distribution_function_table(int);
 static void setup_potential_profile(int);
 static double distribution_function(const double);
@@ -193,10 +192,12 @@ static void calc_distribution_function_table(int iCluster)
 
 	double psi[NSAMPLE] = { 0 }, rho[NSAMPLE] = { 0 };
 
+	Setup_Mass_Profile(iCluster);
+
 	setup_potential_profile(iCluster);
 
 	#pragma omp parallel for  
-	for (int i = 1; i < NSAMPLE; i++) {
+	for (int i = 0; i < NSAMPLE; i++) {
 		
 		double r = rmin * pow(10, i*rstep);
 
@@ -205,9 +206,6 @@ static void calc_distribution_function_table(int iCluster)
 		psi[i] = potential_profile(iCluster, r); 
 	}
 	
-	rho[0] = dm_density_profile(iCluster, 0.1);
-	psi[0] = potential_profile(iCluster, 0.1);
-
 	psi[NSAMPLE-1] = 0; // make sure  E==0 is covered
 
 	double E[NTABLE] = { 0 }, 
@@ -238,8 +236,9 @@ static void calc_distribution_function_table(int iCluster)
 	rstep = log10(rmax/rmin) / NTABLE; // only consider 10 Mpc radius
 	
 	const double sqrt8 = sqrt(8);
+
 	double err = 0;
-	
+
 	#pragma omp for
 	for (int i = 0; i < NTABLE; i++) {
 
@@ -248,8 +247,9 @@ static void calc_distribution_function_table(int iCluster)
 		int_params.E = E[i] = potential_profile(iCluster, r);
 
 		gsl_function F = {&eddington_integrant, &int_params};
-
-		gsl_integration_qags(&F, 0, E[i], 0, 1e-2, NSAMPLE, w, &fE[i], &err); 
+		
+		gsl_integration_qags(&F, 0, E[i], 0, 1e-4, NSAMPLE, w, &fE[i], &err); 
+		
 		fE[i] /= sqrt8 * pi * pi;
 		
 		//printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i],
@@ -303,10 +303,8 @@ static void calc_distribution_function_table(int iCluster)
 	return ;
 }
 
-/* 
- * Binney & Tremaine sect. 4.3.1, we take the second derivate from the
- * cubic spline directly 
- */
+/* Binney & Tremaine sect. 4.3.1, we take the second derivate from the
+ * cubic spline directly */
 
 static double eddington_integrant(double psi, void *params)
 {
@@ -318,7 +316,7 @@ static double eddington_integrant(double psi, void *params)
 	const double dRhodPsi2 = gsl_spline_eval_deriv2(p->spline, psi, p->acc);
 
 	double result = dRhodPsi2 / sqrt(p->E - psi);
-	printf("%g %g %g \n", result, dRhodPsi2, sqrt(p->E - psi));
+	
 	return result;
 }
 
@@ -388,13 +386,14 @@ double psi_integrant(double r, void *param)
 {
 	int i = *((int *) param);
 
+	if (r == 0)
+		return 0;
+
 	return G/r/r * Mass_profile(r, i);
 }
 
 static void setup_potential_profile(int i)
 {
-	Setup_Mass_Profile(i);
-
 	double error = 0;
 
 	gsl_function gsl_F = { 0 };
@@ -408,28 +407,26 @@ static void setup_potential_profile(int i)
 	double r_table[NTABLE] = { 0 };
 
 	double rmin = 1;
-	double rmax = 1e10;
+	double rmax = Halo[i].R_Sample[0] * 1.1;
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 
-	gsl_integration_qag(&gsl_F, 0, rmax, 0, 1e-6, 4096, 
-			GSL_INTEG_GAUSS41, gsl_workspace, &psi_table[0], &error);
-
-	for (int j = 1; j < NTABLE-1; j++) {
+	double gauge = 0;
+	
+	gsl_integration_qag(&gsl_F, 0, 1e100, 0, 1e-6, 4096, 
+			GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
+	
+	for (int j = 1; j < NTABLE; j++) {
 
 		r_table[j] = rmin * pow(10, log_dr * j);
-
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-6, 4096, 
+		
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, 4096, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 
-		psi_table[j] = -1*(psi_table[j] - psi_table[0]); 
-													// gauge r->inf, psi->0
-
-		if (psi_table[j] > psi_table[j-1] || psi_table[j] < 0)
-			psi_table[j] = psi_table[j-1] * 0.95; // behave well for largest r
+		psi_table[j] = -1*(psi_table[j] - gauge);
 	}
-
-	psi_table[NTABLE-1] = 0;
-	r_table[NTABLE-1] = rmax;
+	
+	r_table[0] = 0;
+	psi_table[0] = gauge;
 
 	#pragma omp parallel
 	{
@@ -446,10 +443,14 @@ static void setup_potential_profile(int i)
 
 static double gas_potential_profile(const int i, const double r)
 {
-	if (r > 1e10)
-		return 0; // only noise in the spline, psi close to 0
-	else
+	double r_max = Halo[i].R_Sample[0];
+
+	if (r < r_max)
 		return gsl_spline_eval(Psi_Spline, r, Psi_Acc);
+
+	double psi_max = gsl_spline_eval(Psi_Spline,r_max, Psi_Acc);
+
+	return psi_max*r_max/r;
 }
 
 static double gas_potential_profile_23(const int i, const float r)

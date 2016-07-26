@@ -1,20 +1,20 @@
 % % Toycluster Parameter File %%
 
-Output_file ./IC_single_0   % Base name 
+Output_file ./IC_single_0   % Base name
 
 Ntotal      2000000  % Total Number of Particles in R200
-Mtotal      9439   % Total Mass in Code Units
+Mtotal      1e5   % Total Mass in Code Units
 
 Mass_Ratio  0 %.3125       % set =0 for single cluster
 
-ImpactParam 0
-ZeroEOrbitFrac 0.6
+ImpactParam 50
+ZeroEOrbitFrac 0.8
 
 Cuspy       0      % Use cuspy model (rc /= 10)
 
-Redshift	0.0562
+Redshift	0.87
 
-Bfld_Norm   5e-6    % B(r) = B0 * normalised_density^eta
+Bfld_Norm   20e-6    % B(r) = B0 * normalised_density^eta
 Bfld_Eta    0.5     % like Bonafede 2010. B0 /=2 if Mtotal<5d4
 Bfld_Scale  100
 
@@ -32,12 +32,12 @@ UnitVelocity_in_cm_per_s 	1e5                %  1 km/sec
 % cluster 0
 c_nfw_0     4
 v_com_0     0
-beta_0		0.79
-rc_0        300
+beta_0		0.54
+rc_0        30
 
 % cluster 1
 c_nfw_1    4.089
-v_com_1     380
+v_com_1     0
 beta_1		0.79
 rc_1        300
 

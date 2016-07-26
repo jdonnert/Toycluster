@@ -66,8 +66,8 @@ void Setup()
 
     for (int i = 0; i < Param.Nhalos; i++) { // Baryons and total mass 
 	
-    	Halo[i].R_Sample[0] = Halo[i].R200*1.5;
-		Halo[i].R_Sample[1] = Halo[i].R200*1.5;
+    	Halo[i].R_Sample[0] = Halo[i].R200 * 1.5;
+		Halo[i].R_Sample[1] = Halo[i].R200 * 1.5;
 		Halo[i].Rcut = Halo[i].R200; 
 
 		if (i == 0) { // 0 provides a background
@@ -90,16 +90,19 @@ void Setup()
 		double rc = Halo[i].Rcore;
 		int cuspy = Halo[i].Have_Cuspy;
 
-		Setup_Mass_Profile(1, rc, beta, rcut, cuspy);
+		Halo[i].Rho0 = 1;
 
-       	Halo[i].Rho0 = m200_gas / Mass_profile(r200, 1, beta, rc, rcut, cuspy);
+		Setup_Mass_Profile(i);
+
+       	Halo[i].Rho0 = m200_gas / Mass_profile(r200, i);
+		
+		Setup_Mass_Profile(i);
+
 		double rho0 = Halo[i].Rho0;
 
+	    Halo[i].Mass[0] = Mass_profile(rs_gas, i);
+
 		Halo[i].MassCorrFac = 1/(1 + 2*a/rs_dm + p2(a/rs_dm));
-
-		Setup_Mass_Profile(rho0, rc, beta, rcut, cuspy);
-
-	    Halo[i].Mass[0] = Mass_profile(rs_gas, rho0, beta, rc, rcut, cuspy);
 
         Halo[i].Mass[1] = m200_dm * (1 + 2*a/r200 + p2(a/r200)) 
 			* Halo[i].MassCorrFac; // correct for finite R_sample != infty
@@ -626,8 +629,6 @@ static gsl_spline *Minv_Spline = NULL;
 static gsl_interp_accel *Minv_Acc = NULL;
 #pragma omp threadprivate(Minv_Spline, Minv_Acc)
 
-static double Rmax = 0;
-
 double m_integrant(double r, void * param)
 {
 	struct int_param *ip = ((struct int_param *) param); 
@@ -636,29 +637,34 @@ double m_integrant(double r, void * param)
 										   ip->rcut, ip->cuspy);
 }
 
-void Setup_Mass_Profile(const double rho0, const double rc, const double beta, 
-		const double rcut, const double cuspy)
+static double Rmax = 0;
+
+void Setup_Mass_Profile(const int j)
 {
-	if (rho0 == 0)
-		return ;
+	const double rho0 = Halo[j].Rho0;
+	const double rc = Halo[j].Rcore; 
+	const double beta = Halo[j].Beta;
+	const double rcut = Halo[j].Rcut;
+	const double cuspy = Halo[j].Have_Cuspy;
 
 	double m_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 	double dr_table[NTABLE] = { 0 };
 
 	double rmin = 0.1;
-	Rmax = Param.Boxsize;
+
+	//if (j == 0)
+	//	Rmax = Param.Boxsize;
+	//else
+		Rmax = Halo[j].R_Sample[0]*1.1; // include R_Sample
+
 	double log_dr = ( log10(Rmax/rmin) ) / (NTABLE - 1);
 	
 	gsl_function gsl_F = { 0 };
 	
-	#pragma omp parallel
-	{
-	
 	gsl_integration_workspace *gsl_workspace = NULL;
 	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 
-	#pragma omp for
 	for (int i = 1; i < NTABLE; i++) {
 		
 		double error = 0;
@@ -670,11 +676,16 @@ void Setup_Mass_Profile(const double rho0, const double rc, const double beta,
 		gsl_F.function = &m_integrant;
 		gsl_F.params = (void *) &ip;
 
-		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-3, NTABLE, 
+		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-6, NTABLE, 
 				GSL_INTEG_GAUSS41, gsl_workspace, &m_table[i], &error);
 
-		m_table[i] = fmax(m_table[i],m_table[i-1]); // integrator may fluctuate
+		if (m_table[i] < m_table[i-1])
+			m_table[i] = m_table[i-1]; // integrator may fluctuate
+			
 	}
+
+	#pragma omp parallel
+	{
 
 	M_Acc  = gsl_interp_accel_alloc();
 
@@ -691,17 +702,10 @@ void Setup_Mass_Profile(const double rho0, const double rc, const double beta,
 	return ;
 }
 
-double Mass_profile(const double r_in, const double rho0, const double beta, 
-		const double rc, const double rcut, const bool Is_Cuspy)
+double Mass_profile(const double r_in, const int i)
 {
-	if (rho0 == 0)
-		return 0;
+	double r = fmin(r_in, Halo[i].R_Sample[0]);
 
-	double r = r_in;
-
-	if (r > Rmax)
-		r = Rmax;
-	
 	return  gsl_spline_eval(M_Spline, r, M_Acc);
 }
 
@@ -726,9 +730,14 @@ double Hernquist_density_profile(const double m, const double a, const double r)
  * return M(<= R) of a beta profile with beta=2/3 
  */
 
-double Mass_profile_23(const double r, const double rho0, const double beta, 
-		const double rc, const double rcut, const bool Is_Cuspy)
+double Mass_profile_23(const double r, const int i)
 {	
+	double rho0 = Halo[i].Rho0;
+	double rc = Halo[i].Rcore;
+	double beta = Halo[i].Beta;
+	double rcut = Halo[i].Rcut;
+	int Is_Cuspy = Halo[i].Have_Cuspy;
+	
 	const double r2 = p2(r);
 	const double rc2 = p2(rc);
 	const double rcut2 = p2(rcut);

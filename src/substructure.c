@@ -293,7 +293,7 @@ static void set_subhalo_properties(const int i)
 	for (;;) { // find a and R_Sample iteratively
 		
 		double last_a = a;
-
+		
 		rsample = fmax(sampling_radius(i, r_i), tidal_radius(i,r_i) );
 
 		rsample = fmin(rsample, r200*0.5);
@@ -438,7 +438,7 @@ static double sampling_radius(const int i, const double d)
 		
 	const double m = Halo[i].Mass[1], a = Halo[i].A_hernq;
 
-	double left = 0, right = Halo[0].R200, r = 0, delta = DBL_MAX;	
+	double left = 0, right = 10*Halo[0].R200, r = 0, delta = DBL_MAX;	
 	
 	while (fabs(delta) > 1e-3) { // find root bisection
 	
@@ -521,7 +521,7 @@ static double inverted_subhalo_number_density_profile(const double q)
 static double nfw_scale_radius(const double c_nfw, const double M_t, 
 		const double r)
 { // Springel+ 2008 eq 7-9
-	double left = 0, right = Halo[SUBHOST].R_Sample[0], 
+	double left = 0, right = 10*Halo[SUBHOST].R_Sample[0], 
 		   rs = 0, delta = DBL_MAX;	
 
 	while (fabs(delta) > 1e-3) { // find root

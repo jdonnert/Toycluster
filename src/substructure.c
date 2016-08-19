@@ -124,7 +124,7 @@ static void set_subhalo_masses(const double mass_fraction)
 
 	int i = Sub.First;
 
-	while (Sub.Mtotal < mass_limit) {
+	while (Sub.Mtotal < mass_limit && (i < 70)) {
 		
 		double mDM = 0, q = 0;
 

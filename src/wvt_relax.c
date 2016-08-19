@@ -49,6 +49,10 @@ void Regularise_sph_particles()
 	double step = 0.035;
 #else
 	double step = 0.0085;
+
+	if (Param.Mtotal < 1e5)
+		step /= 2;
+
 #endif
 
 	double errLast = DBL_MAX, errLastTree = DBL_MAX;
@@ -87,14 +91,14 @@ void Regularise_sph_particles()
        	printf("   #%02d: Err max=%3g mean=%03g last mean=%03g diff=%03g"
 				" step=%g\n", it, errMax, errMean, errLast, errDiff, step); 
 
-		if (errDiff < ERRDIFF_LIMIT && it > 25) 
+		if (errDiff < ERRDIFF_LIMIT && it > 25) // at least iterate 25 times
 			break;
 
-		if ((errDiff < 0) && (errDiffLast < 0) && (it > 5))
+		if ((errDiff < 0) && (errDiffLast < 0) && (it > 10)) // stop if worse
 			break;
 
-		if (errDiff < 0.01 && (it > 5)) // force convergence
-			step *= 0.9;
+		if (errDiff < 0.01 && (it > 1)) // force convergence
+			step *= 0.8;
 
 		errLast = errMean;
 		errDiffLast = errDiff;

@@ -44,7 +44,7 @@ void Setup()
     for (int i = 0; i < Param.Nhalos; i++) { 
 
 #ifndef GIVEPARAMS
-		Halo[i].Beta = 2.0/3.0; // std, Donnert 2014
+		Halo[i].Beta = BETA; // std, Donnert 2014
 #endif
 
         Halo[i].Mass200[1] = Halo[i].Mtotal200 / (1+bf);
@@ -66,9 +66,9 @@ void Setup()
 
     for (int i = 0; i < Param.Nhalos; i++) { // Baryons and total mass 
 	
-    	Halo[i].R_Sample[0] = Halo[i].R200 * 1.5;
-		Halo[i].R_Sample[1] = Halo[i].R200 * 1.5;
-		Halo[i].Rcut = Halo[i].R200; 
+    	Halo[i].R_Sample[0] = Halo[i].R200 * 1.8;
+		Halo[i].R_Sample[1] = Halo[i].R200 * 1.8;
+		Halo[i].Rcut = 1.4 *  Halo[i].R200; 
 
 		if (i == 0) { // 0 provides a background
 

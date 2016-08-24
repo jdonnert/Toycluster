@@ -3,6 +3,8 @@ SHELL = /bin/bash
 ## OPTIONS  ##
 OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
 
+OPT += -DBETA=0.54
+
 #OPT     += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
@@ -10,10 +12,12 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
-OPT	+= -DSUBSTRUCTURE	# add substructure
-OPT += -DSUBHOST=1		# host halos
-OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
-OPT += -DREPORTSUBHALOS		# print info about all subhaloes
+#OPT		+= -DNO_RCUT_IN_T		# set Rcut very large
+
+#OPT	+= -DSUBSTRUCTURE	# add substructure
+#OPT += -DSUBHOST=1		# host halos
+#OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
+#OPT += -DREPORTSUBHALOS		# print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
 #OPT  += -DTHIRD_HALO_ONLY

@@ -111,6 +111,10 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 	double a = Halo[i].A_hernq;
 	double Mdm = Halo[i].Mass[1];
 
+#ifdef NO_RCUT_IN_T
+	rcut = 1e5;
+#endif
+
 	double rho_gas = Gas_density_profile(r, rho0, beta, rc, rcut, is_cuspy);
 	double Mr_Gas = Mass_profile(r, i);
 	double Mr_DM = Mdm * r*r/p2(r+a);
@@ -158,7 +162,9 @@ static void setup_internal_energy_profile(const int i)
 		double beta = Halo[i].Beta;
 		double rcut = Halo[i].Rcut;
 		int is_cuspy = Halo[i].Have_Cuspy;
-	
+#ifdef NO_RCUT_IN_T
+		rcut = 1e6;
+#endif
 		double rho_gas = Gas_density_profile(r, rho0, beta, rc, rcut, is_cuspy);
 
 		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9

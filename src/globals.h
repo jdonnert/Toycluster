@@ -29,6 +29,11 @@
 #include "proto.h"
 
 /* Code parameters */
+
+#ifndef BETA
+#define BETA 0.66666666
+#endif
+
 #define CHARBUFSIZE 512	    // For any char buffer ! 
 #define MAXTAGS 300			// In parameter file 
 

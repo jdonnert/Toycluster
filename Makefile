@@ -12,7 +12,7 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
-#OPT		+= -DNO_RCUT_IN_T		# set Rcut very large
+OPT	+= -DNO_RCUT_IN_T		# set Rcut very large
 
 #OPT	+= -DSUBSTRUCTURE	# add substructure
 #OPT += -DSUBHOST=1		# host halos

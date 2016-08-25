@@ -162,6 +162,7 @@ static void setup_internal_energy_profile(const int i)
 		double beta = Halo[i].Beta;
 		double rcut = Halo[i].Rcut;
 		int is_cuspy = Halo[i].Have_Cuspy;
+
 #ifdef NO_RCUT_IN_T
 		rcut = 1e6;
 #endif

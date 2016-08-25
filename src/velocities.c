@@ -320,18 +320,6 @@ static double eddington_integrant(double psi, void *params)
 	return result;
 }
 
-/* 
- * Hernquist 1989, eq. 2 
- */
-
-static double dm_density_profile(const int i, const float r)
-{
-    const double a = Halo[i].A_hernq;
-    const double m = Halo[i].Mass[1]; 
-
-	return m/(2.0*pi) * a/r /p3(r+a) ;
-}
-
 static double potential_profile(const int i, const float r)
 {
 	double psi = dm_potential_profile(i, r); // DM generated potential
@@ -343,8 +331,17 @@ static double potential_profile(const int i, const float r)
 }
 
 /* 
- * For testing. Hernquist 1989, eq. 17-19  
+ * Hernquist 1989, eq. 2 , eq. 17-19
  */
+
+static double dm_density_profile(const int i, const float r)
+{
+    const double a = Halo[i].A_hernq;
+    const double m = Halo[i].Mass[1]; 
+
+	return m/(2.0*pi) * a/r /p3(r+a) ;
+}
+
 
 static double hernquist_distribution_func(const int iCluster, const double E) 
 {
@@ -360,16 +357,12 @@ static double hernquist_distribution_func(const int iCluster, const double E)
 	return f_E;
 }
 
-/* 
- * This is Psi = -Phi, i.e. Psi(r<inf) >= 0 
- */
-
 double dm_potential_profile(const int i, const float r)
 {
     const double a = Halo[i].A_hernq;
     const double mDM = Halo[i].Mass[1]; 
 	
-	double psi = G * mDM / (r+a);
+	double psi = G * mDM / (r+a); // This is Psi = -Phi, i.e. Psi(r<inf) >= 0
 
 	return psi;
 }

@@ -131,6 +131,7 @@ void Setup()
                "   rho0_gas          = %g [cm^-3]\n"
                "   beta              = %g \n"
                "   rc                = %g kpc\n"
+			   "   Rcut              = %g kpc/n"
                ,i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1]
 			   , Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1]
                ,Halo[i].Mass[0] ,Halo[i].Mtotal200
@@ -138,7 +139,7 @@ void Setup()
                , Halo[i].A_hernq*Unit.Length/kpc2cgs
                , Density(Halo[i].Rho0), Halo[i].Rho0
 			   , Density(Halo[i].Rho0) / (0.6 * m_p), Halo[i].Beta 
-			   , Halo[i].Rcore);
+			   , Halo[i].Rcore, Halo[i].Rcut);
 
 #ifdef DOUBLE_BETA_COOL_CORES
 		printf("   rho0_cc           = %g g/cm^3\n"

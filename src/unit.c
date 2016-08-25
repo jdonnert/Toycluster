@@ -1,5 +1,7 @@
 #include "globals.h"
 
+double G = 0;
+
 void Set_units()
 {
      Unit.Time = Unit.Length/Unit.Vel;
@@ -16,6 +18,8 @@ void Set_units()
             ,Unit.Length,Unit.Time, Unit.Mass
             , Unit.Vel, Unit.Density, Unit.Energy);
     
+	G = Grav / p3(Unit.Length) * Unit.Mass * p2(Unit.Time); // internal units
+
     return;
 }
 

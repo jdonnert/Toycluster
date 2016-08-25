@@ -37,7 +37,7 @@ GSL_LIBS = $(LDFLAGS)
 
 ifeq ($(SYSTYPE),DARWIN)
 CC      	=  icc
-OPTIMIZE	=-fast -g -m64  -xhost
+OPTIMIZE	= -m64  -O0 #-xhost -fast
 GSL_INCL 	= $(CPPFLAGS)
 GSL_LIBS	= -L/Users/jdonnert/Dev/lib
 endif
@@ -45,10 +45,8 @@ endif
 ifeq ($(SYSTYPE),MSI)
 CC      	= icc
 OPTIMIZE	= -Wall -g  -O3 -xhost
-GSL_INCL 	= 
-GSL_LIBS	= 
-FFTW_LIBS 	= 
-FFTW_INCL 	=
+GSL_INCL 	=
+GSL_LIBS	=
 endif
 
 ifeq ($(SYSTYPE),mach64.ira.inaf.it)
@@ -67,30 +65,29 @@ EXEC = Toycluster
 ## FILES ##
 
 SRCDIR	= src/
+ 
+SRCFILES := ${shell find $(SRCDIR) -name \*.c -print} # all .c files in SRCDIR
+OBJFILES = $(SRCFILES:.c=.o)
 
-OBJFILES = main.o aux.o positions.o velocities.o temperature.o \
-		   magnetic_field.o io.o unit.o cosmo.o setup.o  tree.o \
-		   sph.o wvt_relax.o substructure.o ids.o sort.o peano.o
-
-OBJS	= $(addprefix $(SRCDIR),$(OBJFILES))
-
-INCLFILES = globals.h proto.h io.h tree.h sph.h macro.h sort.h peano.h \
-			../Makefile
-
-INCL	= $(addprefix $(SRCDIR),$(INCLFILES))
+INCLFILES := ${shell find src -name \*.h -print} # all .h files in SRCDIR
+INCLFILES += Makefile
 
 CFLAGS 	= -std=c99 -fopenmp $(OPTIMIZE) $(OPT) $(GSL_INCL) $(FFTW_INCL)
 
-LINK	= -lm -lgsl -lgslcblas $(GSL_LIBS) $(FFTW_LIBS)
+LINK	= $(GSL_LIBS) -lm -lgsl -lgslcblas 
 
 ## RULES ## 
 
-$(EXEC)	: $(OBJS)
-	@echo SYSTYPE=$(SYSTYPE)
-	$(CC) $(CFLAGS) $(OBJS) $(LINK) -o $(EXEC)
-	@cd src && ctags *.[ch]
+%.o : %.c
+	@echo [CC] $@
+	@$(CC) $(CFLAGS)  -o $@ -c $<
 
-$(OBJS)	: $(INCL)
+$(EXEC)	: $(OBJFILES)
+	@echo SYSTYPE=$(SYSTYPE)
+	$(CC) $(CFLAGS) $(OBJFILES) $(LINK) -o $(EXEC)
+	@ctags -w $(SRCFILES) $(INCLFILES)
+
+$(OBJFILES)	: $(INCLFILES) $(SRCFILES)
 
 clean	: 
-	rm -f  $(OBJS) $(EXEC)
+	rm -f  $(OBJFILES) $(EXEC)

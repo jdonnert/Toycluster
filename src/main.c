@@ -1,12 +1,7 @@
 #include "globals.h"
 
-/* 
- * make IC of a cluster collision 
- * Given total mass, mass ratio and Magnetic field parameters
- * we assume a DM density following Hernquist 1998, Springel+ 2007
- * and model the gas according to Mastropietro+ 2008 
- * Published in Donnert 2014, Donnert+ 2016b. 
- * */
+/* Make IC of a cluster collision 
+ * (Mastropietro+ 2008, Donnert 2014, Donnert+ 2016b) */
 
 int main(int argc, char *argv[])
 {
@@ -34,10 +29,6 @@ int main(int argc, char *argv[])
     Set_cosmology();
     
     Setup();
-
-#ifdef SUBSTRUCTURE
-    Setup_Substructure();
-#endif
 
     Make_positions();  
 

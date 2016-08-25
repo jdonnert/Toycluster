@@ -3,13 +3,7 @@
 
 #include "globals.h"
 
-static struct int_param {
-	double rho0;
-	double beta;
-	double rc;
-	double rcut;
-	double cuspy;
-} ip;
+static double nfw_normalisation(double Mdm, double rs, double c_nfw);
 
 /* 
  * Set all relevant parameters for the collision. This is a mess.
@@ -52,11 +46,13 @@ void Setup()
 
 		double c_nfw = Halo[i].C_nfw = Concentration_parameter(i);
 
-        /* R200, Kitayama & Suto 99, Boehringer+ 2012 (1) */
+        /* R200, Kitayama & Suto 99, Boehringer+ 2012 (1), Lokas+ 2000 */
         Halo[i].R200 = pow(Halo[i].Mtotal200*Unit.Mass
                 / (delta*rho_crit*fourpithird),1./3.)/Unit.Length;
         
         Halo[i].Rs = Halo[i].R200 / Halo[i].C_nfw; // NFW scale radius
+		Halo[i].Rho0_nfw = 
+			nfw_normalisation(Halo[i].Mass200[1], Halo[i].Rs, Halo[i].C_nfw);
 
         /* (Springel & Farrar 07) */
         Halo[i].A_hernq = Halo[i].Rs*sqrt(2*(log(1+c_nfw)-c_nfw/(1+c_nfw)));
@@ -73,7 +69,7 @@ void Setup()
 		if (i == 0) { // 0 provides a background
 
 			Halo[i].R_Sample[1] = Param.Boxsize/2;
-			Halo[i].R_Sample[0] = sqrt(3)*Param.Boxsize/2;
+			Halo[i].R_Sample[0] = Param.Boxsize/2;
 		}
 
 		double rs_gas = Halo[i].R_Sample[0];
@@ -90,30 +86,31 @@ void Setup()
 		double rc = Halo[i].Rcore;
 		int cuspy = Halo[i].Have_Cuspy;
 
-		Halo[i].Rho0 = 1;
+        Halo[i].Mass[0] = 0;
 
-		Setup_Mass_Profile(i);
+		if (bf > 0) {
 
-       	Halo[i].Rho0 = m200_gas / Mass_profile(r200, i);
+			Halo[i].Rho0 = 1;
+
+			Setup_Gas_Mass_Profile(i);
+
+       		Halo[i].Rho0 = m200_gas / Gas_Mass_Profile(r200, i);
 		
-		Setup_Mass_Profile(i);
+			Setup_Gas_Mass_Profile(i);
 
+	    	Halo[i].Mass[0] = Gas_Mass_Profile(rs_gas, i);
+		}
+		
 		double rho0 = Halo[i].Rho0;
 
-	    Halo[i].Mass[0] = Mass_profile(rs_gas, i);
-
-		Halo[i].MassCorrFac = 1/(1 + 2*a/rs_dm + p2(a/rs_dm));
-
-        Halo[i].Mass[1] = m200_dm * (1 + 2*a/r200 + p2(a/r200)) 
-			* Halo[i].MassCorrFac; // correct for finite R_sample != infty
+		Halo[i].Mass[1] = DM_Mass_Profile(Halo[i].R_Sample[1], i);
+        
+		Halo[i].MassCorrFac = 1; // /(1 + 2*a/rs_dm + p2(a/rs_dm));
+		//Halo[i].Mass[1] = m200_dm * (1 + 2*a/r200 + p2(a/r200)) 
+		//	* Halo[i].MassCorrFac; // correct for finite R_sample != infty
 
         Halo[i].Mtotal = Halo[i].Mass[0] + Halo[i].Mass[1];
 
-        if (!bf) {   // DM only
-            Halo[i].Mass[1] += Halo[i].Mass[0];
-            Halo[i].Mass[0] = 0;
-        }
-        
 		printf("Halo Setup : <%d>\n"
                "   Model             = %s\n"
                "   Sample Radius Gas = %g kpc\n"
@@ -123,6 +120,8 @@ void Setup()
                "   Mass in DM        = %g 10^10 MSol\n"
                "   Mass in Gas       = %g 10^10 MSol\n"
                "   Mass in R200      = %g 10^10 MSol\n"
+               "   rho_nfw           = %g \n"
+               "   rs                = %g \n"
                "   c_nfw             = %g \n"
                "   R200              = %g kpc\n"
                "   a_hernquist       = %g kpc\n"
@@ -131,15 +130,15 @@ void Setup()
                "   rho0_gas          = %g [cm^-3]\n"
                "   beta              = %g \n"
                "   rc                = %g kpc\n"
-			   "   Rcut              = %g kpc/n"
-               ,i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1]
-			   , Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1]
-               ,Halo[i].Mass[0] ,Halo[i].Mtotal200
-               , Halo[i].C_nfw, Halo[i].R200*Unit.Length/kpc2cgs
-               , Halo[i].A_hernq*Unit.Length/kpc2cgs
-               , Density(Halo[i].Rho0), Halo[i].Rho0
-			   , Density(Halo[i].Rho0) / (0.6 * m_p), Halo[i].Beta 
-			   , Halo[i].Rcore, Halo[i].Rcut);
+			   "   Rcut              = %g kpc\n",
+               i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1],
+			   Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1],
+               Halo[i].Mass[0] ,Halo[i].Mtotal200, Halo[i].Rho0_nfw, Halo[i].Rs,
+               Halo[i].C_nfw, Halo[i].R200*Unit.Length/kpc2cgs,
+               Halo[i].A_hernq*Unit.Length/kpc2cgs,
+               Density(Halo[i].Rho0), Halo[i].Rho0,
+			   Density(Halo[i].Rho0) / (0.6 * m_p), Halo[i].Beta,
+			   Halo[i].Rcore, Halo[i].Rcut);
 
 #ifdef DOUBLE_BETA_COOL_CORES
 		printf("   rho0_cc           = %g g/cm^3\n"
@@ -338,6 +337,8 @@ void Setup()
 
 #ifdef SUBSTRUCTURE
 	printf("\nSubhalos hosted by cluster <%d> \n\n",SUBHOST );
+    
+	Setup_Substructure();
 #endif
 
 	return;
@@ -591,176 +592,7 @@ double Gas_core_radius(const int i, char *string)
 	return rc;
 }
 
-/* 
- * Double beta profile at rc and rcut 
- */
-
-double Gas_density_profile(const double r, const double rho0, const double beta,
-		const double rc, const double rcut, const bool Is_Cuspy)
+double nfw_normalisation(double Mdm, double rs, double c_nfw)
 {
-	double rho = rho0 * pow(1 + p2(r/rc), -3.0/2.0*beta) 
-				/ (1 + p3(r/rcut) * (r/rcut));
-
-#ifdef DOUBLE_BETA_COOL_CORES
-
-	double rho0_cc = rho0 * Param.Rho0_Fac;
-	double rc_cc = rc / Param.Rc_Fac;
-	
-	if (Is_Cuspy)
-		rho += rho0_cc / (1 + p2(r/rc_cc)) / (1 + p3(r/rcut) * (r/rcut));
-
-#endif // DOUBLE_BETA_COOL_CORES
-
-	return rho;
+	return Mdm / (4*pi * rs*rs*rs * (log(1+c_nfw) - c_nfw/(1+c_nfw)));
 }
-
-/*
- * Compute the mass profile from the gas density profile by numerical 
- * integration and cubic spline interpolation. This has to be called once 
- * before the mass profile of a halo is used, to set the spline variables.
- */
-
-#define NTABLE 1024
-
-static gsl_spline *M_Spline = NULL;
-static gsl_interp_accel *M_Acc = NULL;
-#pragma omp threadprivate(M_Spline, M_Acc)
-
-static gsl_spline *Minv_Spline = NULL;
-static gsl_interp_accel *Minv_Acc = NULL;
-#pragma omp threadprivate(Minv_Spline, Minv_Acc)
-
-double m_integrant(double r, void * param)
-{
-	struct int_param *ip = ((struct int_param *) param); 
-
-	return 4*pi*r*r*Gas_density_profile(r, ip->rho0, ip->beta, ip->rc, 
-										   ip->rcut, ip->cuspy);
-}
-
-static double Rmax = 0;
-
-void Setup_Mass_Profile(const int j)
-{
-	const double rho0 = Halo[j].Rho0;
-	const double rc = Halo[j].Rcore; 
-	const double beta = Halo[j].Beta;
-	const double rcut = Halo[j].Rcut;
-	const double cuspy = Halo[j].Have_Cuspy;
-
-	double m_table[NTABLE] = { 0 };
-	double r_table[NTABLE] = { 0 };
-	double dr_table[NTABLE] = { 0 };
-
-	double rmin = 0.1;
-
-	Rmax = Halo[j].R_Sample[0]*1.1; // include R_Sample
-
-	double log_dr = ( log10(Rmax/rmin) ) / (NTABLE - 1);
-	
-	gsl_function gsl_F = { 0 };
-	
-	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
-
-	for (int i = 1; i < NTABLE; i++) {
-		
-		double error = 0;
-
-		r_table[i] = rmin * pow(10, log_dr * i);
-
-		struct int_param ip = { rho0, beta, rc, rcut, cuspy };
-
-		gsl_F.function = &m_integrant;
-		gsl_F.params = (void *) &ip;
-
-		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-6, NTABLE, 
-				GSL_INTEG_GAUSS41, gsl_workspace, &m_table[i], &error);
-
-		if (m_table[i] < m_table[i-1])
-			m_table[i] = m_table[i-1]; // integrator may fluctuate
-			
-	}
-
-	#pragma omp parallel
-	{
-
-	M_Acc  = gsl_interp_accel_alloc();
-
-	M_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
-	gsl_spline_init(M_Spline, r_table, m_table, NTABLE);
-
-	Minv_Acc  = gsl_interp_accel_alloc();
-
-	Minv_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
-	gsl_spline_init(Minv_Spline, m_table, r_table, NTABLE);
-
-	} // omp parallel
-
-	return ;
-}
-
-double Mass_profile(const double r_in, const int i)
-{
-	double r = fmin(r_in, Halo[i].R_Sample[0]);
-
-	return  gsl_spline_eval(M_Spline, r, M_Acc);
-}
-
-double Invert_Mass_Profile(double M)
-{
-	return gsl_spline_eval(Minv_Spline, M, Minv_Acc);;
-}
-
-double Hernquist_density_profile(const double m, const double a, const double r)
-{
-	return m / (2*pi) * a/(r*p3(r+a));
-}
-
-/* 
- * return M(<= R) of a beta profile with beta=2/3 
- */
-
-double Mass_profile_23(const double r, const int i)
-{	
-	double rho0 = Halo[i].Rho0;
-	double rc = Halo[i].Rcore;
-	double beta = Halo[i].Beta;
-	double rcut = Halo[i].Rcut;
-	int Is_Cuspy = Halo[i].Have_Cuspy;
-	
-	const double r2 = p2(r);
-	const double rc2 = p2(rc);
-	const double rcut2 = p2(rcut);
-
-	double Mr = rho0 * rc2*rcut2*rcut/(8*(p2(rcut2)+p2(rc2))) * // fourth order
-		( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2) 
-								- log(rcut2 + sqrt2*rcut*r+r2)) 
-				   - 2 * (rc2 + rcut2) * atan(1 - sqrt2*r/rcut) 
-				   + 2 * (rc2 + rcut2) * atan(sqrt2 * r/rcut + 1))
-		  - 8 * rc * rcut * atan(r/rc)); 
-		
-#ifdef DOUBLE_BETA_COOL_CORES
-
-	double rc_cc = rc / Param.Rc_Fac;
-	double rc2_cc = p2(rc_cc);
-	double rho0_cc = rho0 * Param.Rho0_Fac;
-	
-	double Mr_cc = 0;
-
-	if (Is_Cuspy)
-		Mr += rho0_cc * rc2_cc*rcut2*rcut/(8*(p2(rcut2)+p2(rc2_cc))) * 
-			( sqrt2 *( (rc2-rcut2) *( log(rcut2 - sqrt2*rcut*r+r2) 
-									- log(rcut2 + sqrt2*rcut*r+r2)) 
-					   - 2 * (rc2_cc + rcut2) * atan(1 - sqrt2*r/rcut) 
-					   + 2 * (rc2_cc + rcut2) * atan(sqrt2 * r/rcut + 1))
-			  - 8 * rc_cc * rcut * atan(r/rc));
-
-#endif // DOUBLE_BETA_COOL_CORES
-
-	return 4 * pi * Mr;
-}
-
-
-
-

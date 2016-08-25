@@ -1,7 +1,25 @@
-#include "macro.h"
-#include "sort.h"
-#include "peano.h"
-#include "cosmo.h"
+
+/* profiles */
+
+void Setup_Profiles(const int);
+void Setup_Gas_Mass_Profile(const int j);
+
+double DM_Density_Profile(const int, const float);
+double DM_Potential_Profile(const int, const float);
+double DM_Mass_Profile(const double, const int); 
+double Inverted_DM_Mass_Profile(const double, const int); 
+double Hernquist_Density_Profile(const double, const double, const double);
+
+double Gas_Density_Profile(const double, const double, const double,
+		const double, const double, const bool); 
+double Gas_Mass_Profile(const double, const int); 
+double Inverted_Gas_Mass_Profile(double); 
+double Gas_Potential_Profile(const int i, const double r);
+double Mass_Profile_23(const double, const int); 
+double Gas_Potential_Profile_23(const int i, const float r);
+
+double Internal_Energy_Profile(const int,const double);
+double Internal_Energy_Profile_Analytic(const int i, const double d);
 
 void Read_param_file(char *);
 void Set_units();
@@ -26,28 +44,16 @@ void Regularise_sph_particles();
 void Show_mass_in_r200();
 void Setup_Substructure();
 void Reassign_particles_to_halos();
-extern void Smooth_SPH_quantities();
-
-double Internal_Energy_Profile(const int,const double);
-double Internal_Energy_Profile_Analytic(const int i, const double d) ;
+void Smooth_SPH_quantities();
 
 
+int Halo_containing(const int, const float,const float,const float);
 double Concentration_parameter(const int);
 double Gas_core_radius(const int, char *);
-double Hernquist_density_profile(const double, const double, const double);
-double Beta_density_profile(const double, const double, const double, 
-		const double);
-double Mass_profile(const double, const int); 
-double Invert_Mass_Profile(double); 
-double Mass_profile_23(const double, const int); 
-double Gas_density_profile(const double, const double, const double, 
-		const double, const double, const bool); 
-int Halo_containing(const int, const float,const float,const float);
-float Global_density_model(const int);
-void Setup_Mass_Profile(const int);
 
 
 /* Helper Monkeys */
+
 void *Malloc_info(const char* func, const char* file, const int line, 
         size_t size);
 void *Realloc_info(const char* func, const char* file, const int line, 

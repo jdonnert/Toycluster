@@ -10,6 +10,7 @@
 int Find_ngb_simple(const int ipart,  const float hsml, int *ngblist);
 int ngblist[NGBMAX] = { 0 }, Ngbcnt ;
 
+static float global_density_model(const int ipart);
 static inline float sph_kernel_M4(const float r, const float h);
 static inline double sph_kernel_WC2(const float r, const float h);
 static inline double sph_kernel_WC6(const float r, const float h);
@@ -73,7 +74,7 @@ void Regularise_sph_particles()
 		#pragma omp parallel for reduction(+:errMean,nIn) reduction(max:errMax)
         for (int  ipart = 0; ipart < nPart; ipart++) { // get error
 
-        	float rho = Global_density_model(ipart);
+        	float rho = global_density_model(ipart);
 
             float err = fabs(SphP[ipart].Rho-rho) / rho;
 
@@ -108,7 +109,7 @@ void Regularise_sph_particles()
 		#pragma omp parallel for shared(hsml) reduction(+:vSphSum)
         for (int ipart = 0; ipart < nPart; ipart++) { // find hsml
 
-            float rho = Global_density_model(ipart);
+            float rho = global_density_model(ipart);
 
 			SphP[ipart].Rho_Model= rho;
 
@@ -176,7 +177,7 @@ void Regularise_sph_particles()
 			reduction(+:cnt) reduction(+:cnt1) reduction(+:cnt2)
         for (int ipart = 0; ipart < nPart; ipart++) { // move particles
 
-            float rho = Global_density_model(ipart);
+            float rho = global_density_model(ipart);
 
 			float d = boxsize * sqrt(p2(delta[0][ipart]) 
 					+ p2( delta[1][ipart]) + p2( delta[2][ipart]));
@@ -224,7 +225,7 @@ void Regularise_sph_particles()
     return ;
 }
 
-float Global_density_model(const int ipart)
+static float global_density_model(const int ipart)
 {
     const double boxhalf = Param.Boxsize*0.5;
 	const double x = P[ipart].Pos[0], y = P[ipart].Pos[1], 
@@ -246,7 +247,7 @@ float Global_density_model(const int ipart)
 	//if (r2 > p2(Halo[i].R_Sample[0]) && (i > 0)) // subhalos END at Rsample
 	//		continue;
 
-		double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0, 
+		double rho_i = Gas_Density_Profile(sqrt(r2), Halo[i].Rho0, 
 				Halo[i].Beta, Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
 
 		rho = fmax(rho_i, rho);

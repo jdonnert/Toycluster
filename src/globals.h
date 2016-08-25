@@ -26,12 +26,16 @@
 #include <omp.h>
 
 /* Global Prototypes */
+#include "macro.h"
+#include "sort.h"
+#include "peano.h"
+#include "cosmo.h"
 #include "proto.h"
 
 /* Code parameters */
 
 #ifndef BETA
-#define BETA 0.66666666
+#define BETA (2.0/3.0) // Donnert 2014
 #endif
 
 #define CHARBUFSIZE 512	    // For any char buffer ! 
@@ -139,6 +143,7 @@ extern struct HaloProperties {
     double Mtotal200;               // Total Mass inside R200 
     double Mass200[6];              // Mass inside R200 
 	double MassCorrFac; 			// Correct DM profile for Rsample != infty
+	double Rho0_nfw;				// Norm of NFW profile
     double C_nfw;                   // NFW profile concentration param 
     double Rs;                      // NFW eq. scale radius 
     double R200;                    // Virial Radius 
@@ -188,5 +193,7 @@ extern struct Units{
     double Density;
     double Energy;
 } Unit;
+
+double G; // gravitational constant 
 
 #endif

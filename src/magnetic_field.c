@@ -50,7 +50,7 @@ static void set_magnetic_vector_potential()
 
 			double r2 = dx*dx + dy*dy + dz*dz;
 
-			double rho_i = Gas_density_profile(sqrt(r2), Halo[i].Rho0,
+			double rho_i = Gas_Density_Profile(sqrt(r2), Halo[i].Rho0,
 						Halo[i].Beta, Halo[i].Rcore, Halo[i].Rcut, 
 						Halo[i].Have_Cuspy);
 
@@ -68,7 +68,7 @@ static void set_magnetic_vector_potential()
     return ;  
 }
 
-static void normalise_magnetic_field()
+static void normalise_magnetic_field() // doesnt work correctly
 {
 	const float boxhalf = 0.5 * Param.Boxsize;
 

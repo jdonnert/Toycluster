@@ -10,6 +10,7 @@
 static void fill_mass_profile_table(int);
 static double invert_mass_profile(double);
 static void sort_particles(int *, const size_t );
+static double inverted_dm_mass_Profile(double q, const int i);
 
 static void sample_DM_particles(const int);
 static void sample_Gas_particles(const int);
@@ -35,6 +36,8 @@ void Make_positions()
 		
 		fflush(stdout);
 
+		Setup_Profiles(i);
+
 		sample_DM_particles(i);
 		
 		sample_Gas_particles(i);
@@ -48,24 +51,23 @@ void Make_positions()
 static void sample_DM_particles(const int i)
 {
 	const double dCoM[3] = {Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
-	const double qmax = Halo[i].MassCorrFac; 
 
 	#pragma omp parallel for
     for (int ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM
 
-		for (;;) { // Hernquist halo M(<R) inverted
+		for (;;) { // DM halo M(<R) inverted
 
-			float theta = acos(2 *  erand48(Omp.Seed) - 1);
-           	float phi = 2*pi * erand48(Omp.Seed);
+			double theta = acos(2 *  erand48(Omp.Seed) - 1);
+           	double phi = 2*pi * erand48(Omp.Seed);
 
-           	float sin_theta = sin(theta);
-           	float cos_theta = cos(theta);
+           	double sin_theta = sin(theta);
+           	double cos_theta = cos(theta);
 
-           	float sin_phi = sin(phi);
-           	float cos_phi = cos(phi);
+           	double sin_phi = sin(phi);
+           	double cos_phi = cos(phi);
 
-           	double sqrt_q =  sqrt(erand48(Omp.Seed) * qmax);  
-           	double r = Halo[i].A_hernq * sqrt_q / (1-sqrt_q);
+           	double q =  erand48(Omp.Seed);  
+           	double r = Inverted_DM_Mass_Profile(q, i);
 
            	double x = r * sin_theta * cos_phi;
            	double y = r * sin_theta * sin_phi;
@@ -92,8 +94,6 @@ static void sample_Gas_particles(const int i)
 	const double dCoM[3] ={Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2]};
 	const double boxhalf = Param.Boxsize/2;
 
-	Setup_Mass_Profile(i);
-
 	#pragma omp parallel for
    	for (size_t ipart = 0; ipart < Halo[i].Npart[0]; ipart++) {
 		
@@ -103,7 +103,7 @@ static void sample_Gas_particles(const int i)
         	double phi = 2*pi * erand48(Omp.Seed);
 
            	double m = erand48(Omp.Seed) * Halo[i].Mass[0];  
-           	double r = Invert_Mass_Profile(m);
+           	double r = Inverted_Gas_Mass_Profile(m);
    
            	double x = r * sin(theta) * cos(phi);
            	double y = r * sin(theta) * sin(phi);
@@ -372,7 +372,7 @@ int Halo_containing(const int type, const float x, const float y, const float z)
    	   		float r = sqrt(p2(x - Halo[j].D_CoM[0]) + p2(y - Halo[j].D_CoM[1])  
 				 + p2(z - Halo[j].D_CoM[2]));
 
-			double rho_gas = Gas_density_profile(r, Halo[j].Rho0, Halo[j].Beta,
+			double rho_gas = Gas_Density_Profile(r, Halo[j].Rho0, Halo[j].Beta,
 							Halo[j].Rcore, Halo[j].Rcut,Halo[j].Have_Cuspy);
 
        		if ( (rho_gas > rho_max) && (r < Halo[j].R_Sample[0]) ) {

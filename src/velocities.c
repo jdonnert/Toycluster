@@ -7,22 +7,16 @@
 #define RMIN 0.1 // smallest radius for which we have f(E)
 
 static void calc_distribution_function_table(int);
-static void setup_potential_profile(int);
 static double distribution_function(const double);
 static double eddington_integrant(double, void *);
 static double potential_profile(const int, const float);
-static double gas_potential_profile(const int i, const double r);
-static double gas_potential_profile_23(const int i, const float r);
-static double dm_density_profile(const int, const float);
-static double dm_potential_profile(const int, const float);
+
 static double hernquist_distribution_func(const int, const double);
 static double sph_kernel_wc2(const float r, const float h);
 
 #ifdef SUBSTRUCTURE
 static void set_subhalo_bulk_velocities();
 #endif
-
-static double G = 0; 
 
 static double Infinity = 1e20;
 
@@ -40,14 +34,12 @@ void Make_velocities()
     printf("\nSetting velocities ");fflush(stdout);
 
 	const double boxhalf = Param.Boxsize/2;
-
-	G = Grav / p3(Unit.Length) * Unit.Mass * p2(Unit.Time); // internal units
 	
 	for (int i = 0; i < Param.Nhalos; i++) {
 
 		if (i < Sub.First)
         	printf("<%d> ", i); 
-		else 
+		else
 			printf(".");
 
 		fflush(stdout);
@@ -167,21 +159,20 @@ static double sph_kernel_wc2(const float r, const float h)
 }
 
 /* return spline interpolation from tables fE and E */
+
 static double distribution_function(const double E)
 {
 	return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
 }
 
-/* 
- * Find f(E) for arbitrary spherically symmetric density-potential pairs by 
+/* Find f(E) for arbitrary spherically symmetric density-potential pairs by 
  * numerical integration of the Eddington equation.
  * We interpolate rho(psi) with an cubic spline using the GSL library and
  * get the second derivative from the spline directly. This is a hard 1D 
  * integral to get to floating point precision ! We disable the GSL error
  * handler, because target accuracy can't always be reached. The Hernquist
  * f(E) is reproduce with a few 1e-3 accuracy ...
- * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 
- */  
+ * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 */  
 
 static void calc_distribution_function_table(int iCluster)
 {
@@ -192,16 +183,14 @@ static void calc_distribution_function_table(int iCluster)
 
 	double psi[NSAMPLE] = { 0 }, rho[NSAMPLE] = { 0 };
 
-	Setup_Mass_Profile(iCluster);
-
-	setup_potential_profile(iCluster);
+	Setup_Profiles(iCluster);
 
 	#pragma omp parallel for  
 	for (int i = 0; i < NSAMPLE; i++) {
 		
 		double r = rmin * pow(10, i*rstep);
 
-		rho[i] = dm_density_profile(iCluster, r);
+		rho[i] = DM_Density_Profile(iCluster, r);
 
 		psi[i] = potential_profile(iCluster, r); 
 	}
@@ -304,7 +293,7 @@ static void calc_distribution_function_table(int iCluster)
 }
 
 /* Binney & Tremaine sect. 4.3.1, we take the second derivate from the
- * cubic spline directly */
+ * cubic spline */
 
 static double eddington_integrant(double psi, void *params)
 {
@@ -322,26 +311,13 @@ static double eddington_integrant(double psi, void *params)
 
 static double potential_profile(const int i, const float r)
 {
-	double psi = dm_potential_profile(i, r); // DM generated potential
+	double psi = DM_Potential_Profile(i, r); // DM generated potential
 	
 	if (Halo[i].Npart[0]) // Gas generated potential
-		psi += gas_potential_profile(i,r);  // exponential cut off near rcut
+		psi += Gas_Potential_Profile(i,r);
 
 	return psi; 
 }
-
-/* 
- * Hernquist 1989, eq. 2 , eq. 17-19
- */
-
-static double dm_density_profile(const int i, const float r)
-{
-    const double a = Halo[i].A_hernq;
-    const double m = Halo[i].Mass[1]; 
-
-	return m/(2.0*pi) * a/r /p3(r+a) ;
-}
-
 
 static double hernquist_distribution_func(const int iCluster, const double E) 
 {
@@ -355,146 +331,6 @@ static double hernquist_distribution_func(const int iCluster, const double E)
                 *( (1 - 2*q2) * (8*q2*q2 - 8*q2 - 3)
                  + (3*asin(sqrt(q2)))/sqrt(q2*(1-q2) ));
 	return f_E;
-}
-
-double dm_potential_profile(const int i, const float r)
-{
-    const double a = Halo[i].A_hernq;
-    const double mDM = Halo[i].Mass[1]; 
-	
-	double psi = G * mDM / (r+a); // This is Psi = -Phi, i.e. Psi(r<inf) >= 0
-
-	return psi;
-}
-
-/*
- * This sets the grav. potential from the gas density.
- */
-
-static gsl_spline *Psi_Spline = NULL;
-static gsl_interp_accel *Psi_Acc = NULL;
-#pragma omp threadprivate(Psi_Spline, Psi_Acc)
-
-double psi_integrant(double r, void *param)
-{
-	int i = *((int *) param);
-
-	if (r == 0)
-		return 0;
-
-	return G/r/r * Mass_profile(r, i);
-}
-
-static void setup_potential_profile(int i)
-{
-	double error = 0;
-
-	gsl_function gsl_F = { 0 };
-	gsl_F.function = &psi_integrant;
-	gsl_F.params = (void *) &i;
-
-	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(4096);
-
-	double psi_table[NTABLE] = { 0 };
-	double r_table[NTABLE] = { 0 };
-
-	double rmin = 1;
-	double rmax = Halo[i].R_Sample[0] * 1.1;
-	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
-
-	double gauge = 0;
-	
-	gsl_integration_qag(&gsl_F, 0, 1e100, 0, 1e-6, 4096, 
-			GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
-	
-	for (int j = 1; j < NTABLE; j++) {
-
-		r_table[j] = rmin * pow(10, log_dr * j);
-		
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, 4096, 
-				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
-
-		psi_table[j] = -1*(psi_table[j] - gauge);
-	}
-	
-	r_table[0] = 0;
-	psi_table[0] = gauge;
-
-	#pragma omp parallel
-	{
-
-	Psi_Acc  = gsl_interp_accel_alloc();
-
-	Psi_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
-	gsl_spline_init(Psi_Spline, r_table, psi_table, NTABLE);
-		
-	} // omp parallel
-
-	return ;
-}
-
-static double gas_potential_profile(const int i, const double r)
-{
-	double r_max = Halo[i].R_Sample[0];
-
-	if (r < r_max)
-		return gsl_spline_eval(Psi_Spline, r, Psi_Acc);
-
-	double psi_max = gsl_spline_eval(Psi_Spline,r_max, Psi_Acc);
-
-	return psi_max*r_max/r;
-}
-
-static double gas_potential_profile_23(const int i, const float r)
-{
-	if (r > 2*Halo[i].Rcut)
-		return 0;
-
-	double rc = Halo[i].Rcore;
-	const double rcut = Halo[i].Rcut;
-
-	const double r2 = r*r;
-	double rc2 = rc*rc;
-	const double rcut2 = rcut*rcut;
-
-	double psi = -1 * rc2*rcut2/(8*(rc2*rc2 + rcut2*rcut2)*r)
-				*(8*rc*rcut2*atan(r/rc) + 4*rc2*r*atan(r2/rcut2) 
-				+ rcut*(2*sqrt2*(rc2 + rcut2)*atan(1 - (sqrt2*r)/rcut) 
-					- 2*sqrt2*(rc2 + rcut2)* atan(1 + (sqrt2*r)/rcut) 
-					+ 4*rcut*r*log(rc2 + r2) 
-					- sqrt2*rc2* log(rcut2 - sqrt2*rcut*r + r2) 
-					+ sqrt2*rcut2*log(rcut2 - sqrt2*rcut*r + r2) 
-					+ sqrt2*rc2*log(rcut2 + sqrt2*rcut*r + r2) 
-					- sqrt2*rcut2*log(rcut2 + sqrt2*rcut*r + r2) 
-					- 2*rcut*r*log(rcut2*rcut2 + r2*r2))) ; 
-
-	psi *= Halo[i].Rho0;
-
-#ifdef DOUBLE_BETA_COOL_CORES
-
-	rc /= rc / Param.Rc_Fac;
-	rc2 = p2(rc);
-
-	double psi_cc = -1 * rc2*rcut2/(8*(rc2*rc2 + rcut2*rcut2)*r)
-				*(8*rc*rcut2*atan(r/rc) + 4*rc2*r*atan(r2/rcut2) 
-				+ rcut*(2*sqrt2*(rc2 + rcut2)*atan(1 - (sqrt2*r)/rcut) 
-					- 2*sqrt2*(rc2 + rcut2)* atan(1 + (sqrt2*r)/rcut) 
-					+ 4*rcut*r*log(rc2 + r2) 
-					- sqrt2*rc2* log(rcut2 - sqrt2*rcut*r + r2) 
-					+ sqrt2*rcut2*log(rcut2 - sqrt2*rcut*r + r2) 
-					+ sqrt2*rc2*log(rcut2 + sqrt2*rcut*r + r2) 
-					- sqrt2*rcut2*log(rcut2 + sqrt2*rcut*r + r2) 
-					- 2*rcut*r*log(rcut2*rcut2 + r2*r2))) ; 
-
-	psi += psi_cc * Halo[i].Rho0 * Param.Rho0_Fac;
-
-#endif // DOUBLE_BETA_COOL_CORES
-
-	//double psi =  p3(rc)*( 0.5/rc*log(rc*rc+r*r) + atan(r/rc)/r )
-//			* p2(p2(1 - r/rcut)) // no cutoff
-
-	return 4*pi*G * psi;
 }
 
 #ifdef SUBSTRUCTURE

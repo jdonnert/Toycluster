@@ -31,9 +31,10 @@ static interpolation_parameters fE_params;
 
 void Make_velocities()
 {
-    printf("\nSetting velocities ");fflush(stdout);
-
 	const double boxhalf = Param.Boxsize/2;
+
+    printf("\nSetting velocities "); 
+	fflush(stdout);
 	
 	for (int i = 0; i < Param.Nhalos; i++) {
 
@@ -45,6 +46,7 @@ void Make_velocities()
 		fflush(stdout);
 		
 		/* peculiar velocity */
+
 		calc_distribution_function_table(i); 
 		
 		double M = Halo[i].Mtotal;

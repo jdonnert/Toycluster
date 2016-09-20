@@ -2,7 +2,7 @@
 
 Output_file ./IC_single_0   % Base name
 
-Ntotal      1000000  % Total Number of Particles in R200
+Ntotal      500000  % Total Number of Particles in R200
 Mtotal      1e5   % Total Mass in Code Units
 
 Mass_Ratio  0 %.3125       % set =0 for single cluster
@@ -18,7 +18,7 @@ Bfld_Norm   20e-6    % B(r) = B0 * normalised_density^eta
 Bfld_Eta    0.5     % like Bonafede 2010. B0 /=2 if Mtotal<5d4
 Bfld_Scale  100
 
-bf          0%.17 	% bf in r200, bf = 17% ~ 14% in r500
+bf          0 %.17 	% bf in r200, bf = 17% ~ 14% in r500
 h_100       0.7     % HubbleConstant/100
 
 %Units

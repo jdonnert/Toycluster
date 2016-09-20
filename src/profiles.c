@@ -7,7 +7,6 @@
 static void setup_internal_energy_profile(const int i);
 static void setup_gas_potential_profile(const int i);
 static void	setup_dm_mass_profile(const int i);
-static void setup_dm_potential_profile(const int i);
 
 static struct int_param {
 	double rho0;
@@ -23,7 +22,6 @@ void Setup_Profiles(const int i)
 {
 
 	setup_dm_mass_profile(i);
-	setup_dm_potential_profile(i);
 
 	if (Cosmo.Baryon_Fraction > 0) {
 
@@ -43,6 +41,9 @@ double DM_Density_Profile(const int i, const float r)
 {
     const double rs = Halo[i].Rs;
     const double rho0 = Halo[i].Rho0_nfw; 
+
+	if (r > Halo[i].R_Sample[1])
+		return 0;
 
 	return rho0 / (r/rs * p2(1+r/rs));
 }
@@ -96,28 +97,35 @@ double Inverted_DM_Mass_Profile(double q, const int i)
 	return gsl_spline_eval(DMMinv_Spline, q, DMMinv_Acc);
 }
 
+/* As the NFW does not converge, we have to cut it off after R_Sample */
+
 double DM_Potential_Profile(const int i, const float r)
 {
-    const double a = Halo[i].A_hernq;
-    const double mDM = Halo[i].Mass[1]; 
+	double rmax = Halo[i].R_Sample[1];
+	double rs = Halo[i].Rs;
+    double rho0 = Halo[i].Rho0_nfw; 
 	
-	double psi = G * mDM / (r+a); // This is Psi = -Phi, i.e. Psi(r<inf) >= 0
+	double fac = Grav*4*pi*rho0*p3(rs);
 
-	return psi;
+	if (r < rmax) { 
+	
+    	double rrs = r/rs;
+		
+		return fac*log(1+rrs)/rrs;
+
+	} else {
+
+		double M = fac*rs * log(1+rmax/rs);
+		
+		return M/r; // behaves like point mass
+	}
+
+	return 0; // never reached
 }
-
-static void setup_dm_potential_profile(const int i)
-{
-	return ;
-
-}
-
 
 /**********************************************************************/
 
-/* 
- * Double beta profile at rc and rcut 
- */
+/* Double beta profile at rc and rcut */
 
 double Gas_Density_Profile(const double r, const double rho0, 
 						   const double beta, const double rc, 

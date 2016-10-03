@@ -2,9 +2,9 @@
 #include <gsl/gsl_spline.h>
 #include "globals.h"
 
-#define NTABLE 1024
-#define NSAMPLE (NTABLE*4) // oversample integrand
-#define RMIN 0.1 // smallest radius for which we have f(E)
+#define NTABLE 512
+#define NSAMPLE (NTABLE*2) // oversample integrand
+#define RMIN 1 // smallest radius for which we have f(E)
 
 static void calc_distribution_function_table(int);
 static double distribution_function(const double);
@@ -17,17 +17,6 @@ static double sph_kernel_wc2(const float r, const float h);
 #ifdef SUBSTRUCTURE
 static void set_subhalo_bulk_velocities();
 #endif
-
-static double Infinity = 1e20;
-
-typedef struct {
-	double E;
-	gsl_spline *spline;
-	gsl_interp_accel *acc;
-} interpolation_parameters;
-
-static interpolation_parameters fE_params;
-#pragma omp threadprivate(fE_params)
 
 void Make_velocities()
 {
@@ -47,6 +36,8 @@ void Make_velocities()
 		
 		/* peculiar velocity */
 
+		Setup_Profiles(i);
+
 		calc_distribution_function_table(i); 
 		
 		double M = Halo[i].Mtotal;
@@ -62,9 +53,10 @@ void Make_velocities()
 
             double r = fmax(RMIN, sqrt(dx*dx + dy*dy + dz*dz)); 
 			
-			double pot = -potential_profile(i, r); // rejection sampling
+			double pot = potential_profile(i, r); // rejection sampling
             double vmax = sqrt(-2*pot);
             double emax = pot;
+
 			double qmax = 4*pi * p2(vmax)/M * distribution_function(-emax);
 
             double v = 0;
@@ -78,7 +70,7 @@ void Make_velocities()
                 v = vmax * erand48(Omp.Seed);
 
                 double Etot = 0.5 * v*v + pot;  
-				
+
 				double q = 4*pi * p2(v)/M * distribution_function(-Etot);
 
 				if (q >= lower_bound)
@@ -160,12 +152,6 @@ static double sph_kernel_wc2(const float r, const float h)
 	return 21/2/pi/p3(h)*t*t*t*t * (1+4*u);
 }
 
-/* return spline interpolation from tables fE and E */
-
-static double distribution_function(const double E)
-{
-	return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
-}
 
 /* Find f(E) for arbitrary spherically symmetric density-potential pairs by 
  * numerical integration of the Eddington equation.
@@ -176,16 +162,29 @@ static double distribution_function(const double E)
  * f(E) is reproduce with a few 1e-3 accuracy ...
  * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 */  
 
+typedef struct {
+	double E;
+	gsl_spline *spline;
+	gsl_interp_accel *acc;
+} interpolation_parameters;
+
+static interpolation_parameters fE_params;
+#pragma omp threadprivate(fE_params)
+
+static double distribution_function(const double E)
+{
+	return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
+}
+
 static void calc_distribution_function_table(int iCluster)
 {
-	double rmin = RMIN; // zero wont work 
+	double rmin = Zero; // 0 wont work 
 	double rmax = Infinity; // large val for accuracy
 
 	double rstep = log10(rmax/rmin) / NSAMPLE; // good up to one Gpc
 
-	double psi[NSAMPLE] = { 0 }, rho[NSAMPLE] = { 0 };
-
-	Setup_Profiles(iCluster);
+	double psi[NSAMPLE] = { 0 }, 
+		   rho[NSAMPLE] = { 0 };
 
 	#pragma omp parallel for  
 	for (int i = 0; i < NSAMPLE; i++) {
@@ -194,10 +193,12 @@ static void calc_distribution_function_table(int iCluster)
 
 		rho[i] = DM_Density_Profile(iCluster, r);
 
-		psi[i] = potential_profile(iCluster, r); 
+		psi[i] = -potential_profile(iCluster, r); 
+		
+		//printf("%d %g %g %g \n", i, r, rho[i], psi[i]);
 	}
-	
-	psi[NSAMPLE-1] = 0; // make sure  E==0 is covered
+
+	psi[NSAMPLE-1] = rho[NSAMPLE-1] = 0; // make sure  E==0 is covered
 
 	double E[NTABLE] = { 0 }, 
 		   fE[NTABLE] = { 0 };
@@ -205,13 +206,15 @@ static void calc_distribution_function_table(int iCluster)
 	double x[NSAMPLE] = { 0 }, // holds inverted vals
 		   y[NSAMPLE] = { 0 }; 
 
-	for (int i = 0; i < NSAMPLE; i++) { // for spline interpolation
+	for (int i = 0; i < NSAMPLE; i++) { // invert profile for interpolation
 	
 		x[i] = psi[NSAMPLE-i-1];
 		y[i] = rho[NSAMPLE-i-1];
 	}
 
-	gsl_error_handler_t * old_handler = gsl_set_error_handler_off();
+	for (int i = 1; i < NSAMPLE; i++)
+		if (x[i-1] >= x[i])
+			printf("%d %g %g \n", i, x[i], x[i-1]);
 
 	#pragma omp parallel // make f(E) table
 	{
@@ -226,7 +229,7 @@ static void calc_distribution_function_table(int iCluster)
 
 	rstep = log10(rmax/rmin) / NTABLE; // only consider 10 Mpc radius
 	
-	const double sqrt8 = sqrt(8);
+	const double sqrt8 = sqrt(8.0);
 
 	double err = 0;
 
@@ -235,16 +238,17 @@ static void calc_distribution_function_table(int iCluster)
 
 		double r = rmin * pow(10, i*rstep);
 
-		int_params.E = E[i] = potential_profile(iCluster, r);
+		int_params.E = E[i] = -potential_profile(iCluster, r);
 
 		gsl_function F = {&eddington_integrant, &int_params};
 		
-		gsl_integration_qags(&F, 0, E[i], 0, 1e-4, NSAMPLE, w, &fE[i], &err); 
+		gsl_integration_qags(&F, 0, E[i], 0, 1e-3, NSAMPLE, w, &fE[i], &err); 
 		
 		fE[i] /= sqrt8 * pi * pi;
 		
-		//printf("%d %g %g %g %g %g \n", i, r, E[i], fE[i],
-		//		hernquist_distribution_func(iCluster, E[i]), err/fE[i]);
+		//printf("%d %g %g %g %g %g %g \n", i, r, E[i], fE[i],
+		//		hernquist_distribution_func(iCluster, E[i]), err/fE[i], 
+		//		eddington_integrant(0.5*E[i], &int_params));
 	}
 
 	fE[0] = fE[1]; // avoid singularity at r=0, E=Emax
@@ -259,8 +263,6 @@ static void calc_distribution_function_table(int iCluster)
 
 	} // omp parallel 
 
-	gsl_set_error_handler(old_handler);
-
 	#pragma omp parallel
 	{
 	fE_params.acc = gsl_interp_accel_alloc();
@@ -273,15 +275,14 @@ static void calc_distribution_function_table(int iCluster)
 		
 		y[i] = fE[NTABLE-i-1];
 	}
-
 	#pragma omp parallel
 	gsl_spline_init(fE_params.spline, x, y, NTABLE);
 	
-/*	for (int i = 0; i < NTABLE; i++) {
+	for (int i = 0; i < NTABLE; i++) {
 		
 		double r = rmin * pow(10, i*rstep);
 
-		double E = potential_profile(iCluster, r);
+		double E = -potential_profile(iCluster, r);
 
 		printf("%d %g %g ", i, r, E);
 
@@ -289,7 +290,7 @@ static void calc_distribution_function_table(int iCluster)
 		double fe = distribution_function(E);
 
 		printf("%g %g %g \n", solution, fe, fabs(fe-solution)/solution);
-	} */
+	}
 
 	return ;
 }
@@ -307,7 +308,7 @@ static double eddington_integrant(double psi, void *params)
 	const double dRhodPsi2 = gsl_spline_eval_deriv2(p->spline, psi, p->acc);
 
 	double result = dRhodPsi2 / sqrt(p->E - psi);
-	
+
 	return result;
 }
 
@@ -361,7 +362,7 @@ void set_subhalo_bulk_velocities()
 		
 		double r = sqrt(dx*dx + dy*dy + dz*dz); 
 
-		double pot = -potential_profile(i, r);
+		double pot = potential_profile(i, r);
         double vmax = sqrt(-2*pot);
         double emax = -pot;
 		double qmax = 4*pi * p2(vmax)/M * distribution_function(emax);

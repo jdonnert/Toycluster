@@ -51,7 +51,7 @@ void Free_info(const char* func, const char* file, const int line, void *ptr)
  * to print more informative error messages */
 
 void Assert_Info(const char *func, const char *file, int line,
-		int64_t expr, const char *errmsg, ...)
+				 int64_t expr, const char *errmsg, ...)
 {
     if (expr)
         return;

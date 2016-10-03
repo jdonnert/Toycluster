@@ -139,8 +139,8 @@ extern struct HaloProperties {
     int Have_Cuspy;                 // Is this cluster cored or cuspy 
 	int Is_Stripped;
     double Mtotal;                  // Mass of this cluster 
-    double Mass[6];                 // Mass in 6 particle types 
     double Mtotal200;               // Total Mass inside R200 
+    double Mass[6];                 // Mass in 6 particle types at R_Sample
     double Mass200[6];              // Mass inside R200 
 	double MassCorrFac; 			// Correct DM profile for Rsample != infty
 	double Rho0_nfw;				// Norm of NFW profile
@@ -194,6 +194,9 @@ extern struct Units{
     double Energy;
 } Unit;
 
-double G; // gravitational constant 
+double G; // gravitational constant in code units
+
+static const double Infinity = 1e20; // global boundaries for profiles
+static const double Zero = 1;
 
 #endif

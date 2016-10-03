@@ -3,8 +3,6 @@
 
 #include "globals.h"
 
-static double nfw_normalisation(double Mdm, double rs, double c_nfw);
-
 /* 
  * Set all relevant parameters for the collision. This is a mess.
  * We first find R200 from the baryon fraction in R200 and the total mass
@@ -17,9 +15,8 @@ void Setup()
     double mtot[2] = {0}, mDM, mGas;
     double d_clusters;
     char string[255];
-
-    const double G = Grav/pow(Unit.Length,3)*Unit.Mass*pow(Unit.Time,2);
-    const double bf = Cosmo.Baryon_Fraction;
+    
+	const double bf = Cosmo.Baryon_Fraction;
     const double Xm = Param.Mass_Ratio;
 	
 	const double z = Param.Redshift;
@@ -51,8 +48,10 @@ void Setup()
                 / (delta*rho_crit*fourpithird),1./3.)/Unit.Length;
         
         Halo[i].Rs = Halo[i].R200 / Halo[i].C_nfw; // NFW scale radius
-		Halo[i].Rho0_nfw = 
-			nfw_normalisation(Halo[i].Mass200[1], Halo[i].Rs, Halo[i].C_nfw);
+
+		Halo[i].Rho0_nfw = 1; // norm of cut-off NFW profile
+		Halo[i].Rho0_nfw = Halo[i].Mass200[1]
+						  / DM_Mass_Profile_NFW(Halo[i].R200,i);
 
         /* (Springel & Farrar 07) */
         Halo[i].A_hernq = Halo[i].Rs*sqrt(2*(log(1+c_nfw)-c_nfw/(1+c_nfw)));
@@ -76,8 +75,6 @@ void Setup()
 		double rs_dm = Halo[i].R_Sample[1];
         double a = Halo[i].A_hernq;
         double beta = Halo[i].Beta;
-		double m200_dm = Halo[i].Mass200[1];
-		double m200_gas = Halo[i].Mass200[0];
         double r200 = Halo[i].R200;
         double rcut = Halo[i].Rcut;
 	
@@ -86,7 +83,20 @@ void Setup()
 		double rc = Halo[i].Rcore;
 		int cuspy = Halo[i].Have_Cuspy;
 
+		/* DM Mass */
+Halo[i].Mass[1] =   224483;
+		Setup_DM_Mass_Profile(i);
+
+		Halo[i].Mass[1] = DM_Mass_Profile(Halo[i].R_Sample[1], i);
+
+		Halo[i].MassCorrFac = DM_Mass_Profile(Infinity, i)
+							/ DM_Mass_Profile(Halo[i].R200, i);
+							// correct for finite R_sample != infty
+		/* Gas Mass */
+
         Halo[i].Mass[0] = 0;
+
+		double rho0 = Halo[i].Rho0;
 
 		if (bf > 0) {
 
@@ -94,29 +104,25 @@ void Setup()
 
 			Setup_Gas_Mass_Profile(i);
 
-       		Halo[i].Rho0 = m200_gas / Gas_Mass_Profile(r200, i);
+       		Halo[i].Rho0 = Halo[i].Mass200[0] / Gas_Mass_Profile(r200, i);
 		
 			Setup_Gas_Mass_Profile(i);
 
 	    	Halo[i].Mass[0] = Gas_Mass_Profile(rs_gas, i);
 		}
 		
-		double rho0 = Halo[i].Rho0;
-
-		Halo[i].Mass[1] = DM_Mass_Profile(Halo[i].R_Sample[1], i);
-        
-		Halo[i].MassCorrFac = 1; // /(1 + 2*a/rs_dm + p2(a/rs_dm));
-		//Halo[i].Mass[1] = m200_dm * (1 + 2*a/r200 + p2(a/r200)) 
-		//	* Halo[i].MassCorrFac; // correct for finite R_sample != infty
-
         Halo[i].Mtotal = Halo[i].Mass[0] + Halo[i].Mass[1];
+
+        Param.Mtotal += Halo[i].Mtotal;
+        mtot[0] += Halo[i].Mass[0];
+        mtot[1] +=  Halo[i].Mass[1];
 
 		printf("Halo Setup : <%d>\n"
                "   Model             = %s\n"
                "   Sample Radius Gas = %g kpc\n"
                "   Sample Radius DM  = %g kpc\n"
 			   "   qmax              = %g \n"
-               "   Mass              = %g 10^10 MSol\n"
+               "   Mass in R_Sample  = %g 10^10 MSol\n"
                "   Mass in DM        = %g 10^10 MSol\n"
                "   Mass in Gas       = %g 10^10 MSol\n"
                "   Mass in R200      = %g 10^10 MSol\n"
@@ -147,10 +153,6 @@ void Setup()
 				Density(Halo[i].Rho0*Param.Rho0_Fac), 
 				Halo[i].Rho0*Param.Rho0_Fac,Halo[i].Rcore/Param.Rc_Fac );
 #endif // DOUBLE_BETA_COOL_CORES
-
-        Param.Mtotal += Halo[i].Mtotal;
-        mtot[0] += Halo[i].Mass[0];
-        mtot[1] += Halo[i].Mass[1];
 
 		/* Calc & show effective Baryon Fraction in R500 */
 
@@ -185,6 +187,7 @@ void Setup()
     
     /* Particle numbers are calculated from the global
      * masses, not from masses in r200 */
+
     int nDM  = 0.5 * Param.Ntotal;
     int nGas = 0.5 * Param.Ntotal;
 
@@ -590,9 +593,4 @@ double Gas_core_radius(const int i, char *string)
     }
 
 	return rc;
-}
-
-double nfw_normalisation(double Mdm, double rs, double c_nfw)
-{
-	return Mdm / (4*pi * rs*rs*rs * (log(1+c_nfw) - c_nfw/(1+c_nfw)));
 }

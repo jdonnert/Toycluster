@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
         Make_temperatures();
     }
 
-    Make_velocities();
+   	Make_velocities();
 
     Apply_kinematics();   
 	

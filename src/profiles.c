@@ -4,9 +4,10 @@
 
 #define NTABLE 1024
 
+
 static void setup_internal_energy_profile(const int i);
 static void setup_gas_potential_profile(const int i);
-static void	setup_dm_mass_profile(const int i);
+static void	setup_dm_potential_profile(const int i);
 
 static struct int_param {
 	double rho0;
@@ -16,12 +17,13 @@ static struct int_param {
 	double cuspy;
 } ip;
 
-/* This file contains all physical profiles that describe the cluster models */
+/* This file contains all physical profiles that describe the cluster model */
 
 void Setup_Profiles(const int i)
 {
+	Setup_DM_Mass_Profile(i);
 
-	setup_dm_mass_profile(i);
+	setup_dm_potential_profile(i);
 
 	if (Cosmo.Baryon_Fraction > 0) {
 
@@ -29,7 +31,21 @@ void Setup_Profiles(const int i)
 		setup_gas_potential_profile(i);
 		setup_internal_energy_profile(i);
 	}
+
 	return ;
+}
+
+/* As the NFW does not converge, we have to cut it off after R_Sample */
+
+double DM_Density_Profile(const int i, const float r)
+{
+    const double rs = Halo[i].Rs;
+    const double rho0 = Halo[i].Rho0_nfw; 
+	const double rmax = Halo[i].R_Sample[1];
+
+	double rho_nfw = rho0 / (r/rs * p2(1+r/rs));
+
+	return rho_nfw / (1+ p2(r/rmax)); // cutoff
 }
 
 double Hernquist_Density_Profile(const double m, const double a, const double r)
@@ -37,21 +53,10 @@ double Hernquist_Density_Profile(const double m, const double a, const double r)
 	return m / (2*pi) * a/(r*p3(r+a)); // Hernquist 1989, eq. 2 , eq. 17-19
 }
 
-double DM_Density_Profile(const int i, const float r)
-{
-    const double rs = Halo[i].Rs;
-    const double rho0 = Halo[i].Rho0_nfw; 
-
-	if (r > Halo[i].R_Sample[1])
-		return 0;
-
-	return rho0 / (r/rs * p2(1+r/rs));
-}
-
-double DM_Mass_Profile(const double r, const int i)
+double DM_Mass_Profile_NFW(const double r, const int i)
 {
 	double rs = Halo[i].Rs;
-	double rho0 = Halo[i].Rho0_nfw; // NFW profile (Wiki)
+	double rho0 = Halo[i].Rho0_nfw; // (Wiki, Mo+ 2010)
 
 	return 4*pi*rho0*p3(rs) * (log((rs+r)/rs) - r/(rs+r));
 }
@@ -61,26 +66,73 @@ static gsl_spline *DMMinv_Spline = NULL;
 static gsl_interp_accel *DMMinv_Acc = NULL;
 #pragma omp threadprivate(DMMinv_Spline, DMMinv_Acc)
 
-void setup_dm_mass_profile(const int iCluster)
+static gsl_spline *DMM_Spline = NULL;
+static gsl_interp_accel *DMM_Acc = NULL;
+#pragma omp threadprivate(DMM_Spline, DMM_Acc)
+
+double DM_Mass_Profile(const double r, const int i)
+{
+	return gsl_spline_eval(DMM_Spline, r, DMM_Acc);
+}
+
+double Inverted_DM_Mass_Profile(double q, const int i)
+{
+	double m = q * Halo[i].Mass[1];
+
+	return gsl_spline_eval(DMMinv_Spline, m, DMMinv_Acc);
+}
+
+static double dmm_integrant(double r, void * param)
+{
+	int i = *((int *) param); 
+	
+	return 4.0*pi*r*r * DM_Density_Profile(i, r);
+}
+
+void Setup_DM_Mass_Profile(const int iCluster)
 {
 	const double Mdm = Halo[iCluster].Mass[1];
 
 	double m_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 
-	double rmin = 0.1;
-	double rmax = Param.Boxsize/2;
+	double rmin = Zero;
+	double rmax = Infinity;
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
+	
+	gsl_function gsl_F = { 0 };
+	
+	gsl_integration_workspace *gsl_workspace = NULL;
+	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 
 	for (int i = 1; i < NTABLE; i++) {
-	
+		
+		double error = 0;
+
 		r_table[i] = rmin * pow(10, log_dr * i);
-		m_table[i] = DM_Mass_Profile(r_table[i], iCluster) / Mdm;
+
+		int ip = iCluster;
+	
+		gsl_F.function = &dmm_integrant;
+		gsl_F.params = (void *) &ip;
+
+		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-6, NTABLE, 
+				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
 	}
-	m_table[0] = 0;
+
+	r_table[0] = m_table[0] = 0;
+		
+	for (int i = 1; i < NTABLE; i++)
+		if (m_table[i-1] >= m_table[i]) // make strictly increasing
+			m_table[i] = m_table[i-1] * (1 + 1e-8); 
 
 	#pragma omp parallel
 	{
+
+	DMM_Acc  = gsl_interp_accel_alloc();
+
+	DMM_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	gsl_spline_init(DMM_Spline, r_table, m_table, NTABLE);
 
 	DMMinv_Acc  = gsl_interp_accel_alloc();
 
@@ -92,35 +144,101 @@ void setup_dm_mass_profile(const int iCluster)
 	return ;
 }
 
-double Inverted_DM_Mass_Profile(double q, const int i)
-{
-	return gsl_spline_eval(DMMinv_Spline, q, DMMinv_Acc);
-}
 
-/* As the NFW does not converge, we have to cut it off after R_Sample */
-
-double DM_Potential_Profile(const int i, const float r)
+double DM_Potential_Profile_NFW(const int i, const float r)
 {
 	double rmax = Halo[i].R_Sample[1];
 	double rs = Halo[i].Rs;
     double rho0 = Halo[i].Rho0_nfw; 
+
+	return G * Halo[i].Mass[1]/rs/2 * (1 - p2(r/(r+rs))); // Mo+ 2010, 5.164
+}
+
+static gsl_spline *DMPsi_Spline = NULL;
+static gsl_interp_accel *DMPsi_Acc = NULL;
+#pragma omp threadprivate(DMPsi_Spline, DMPsi_Acc)
+
+static double dmpsi_integrant(const double r, void * param)
+{
+	int i = *((int *) param); 
+
+	return G/p2(r) * DM_Mass_Profile(r, i);
+}
+
+
+/* We need the precise potential up to very large distances. Because the
+ * numerical integrator runs into precision issues for large r, we extra-
+ * polate linearly the potential in log space beyond 1 Gpc */
+
+static void	setup_dm_potential_profile(const int iCluster)
+{
+	double psi_table[NTABLE] = { 0 };
+	double r_table[NTABLE] = { 0 };
+
+	double rmin = Zero;
+	double rmax = Infinity;
+	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 	
-	double fac = Grav*4*pi*rho0*p3(rs);
-
-	if (r < rmax) { 
+	gsl_function gsl_F = { 0 };
 	
-    	double rrs = r/rs;
-		
-		return fac*log(1+rrs)/rrs;
+	gsl_integration_workspace *gsl_workspace = NULL;
+	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 
-	} else {
+	for (int i = 1; i < NTABLE; i++) {
+	
+		double error = 0;
 
-		double M = fac*rs * log(1+rmax/rs);
-		
-		return M/r; // behaves like point mass
+		r_table[i] = rmin * pow(10, log_dr * i);
+
+		int ip = iCluster;
+	
+		gsl_F.function = &dmpsi_integrant;
+		gsl_F.params = (void *) &ip;
+
+		gsl_integration_qag(&gsl_F, Zero, r_table[i], 0, 1e-7, NTABLE, 
+				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[i], &error);
 	}
+	psi_table[0] = psi_table[1];
 
-	return 0; // never reached
+	for (int i = 0; i < NTABLE; i++)
+		psi_table[i] -= psi_table[NTABLE-1]; // == 0 @ infinity
+
+	double dpsi_dr = 0, psi0 = 0;
+
+	for (int i = 1; i < NTABLE-1; i++) { // extrapolate to make 
+										 // strictly decreasing
+		if (r_table[i] < 1e6)
+			continue;
+
+		if (dpsi_dr == 0) {
+
+			dpsi_dr = (log10(-psi_table[i+1]) - log10(-psi_table[i-1])) 
+					/ (log10(   r_table[i+1]) - log10(   r_table[i-1]));
+		
+			psi0 =log10(-psi_table[i]) - dpsi_dr* log10(r_table[i]);
+		}
+		
+		psi_table[i] = -pow(10, dpsi_dr*log10(r_table[i]) + psi0);
+	}	
+
+	psi_table[NTABLE-1] = 0;
+
+	#pragma omp parallel
+	{
+
+	DMPsi_Acc  = gsl_interp_accel_alloc();
+
+	DMPsi_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	gsl_spline_init(DMPsi_Spline, r_table, psi_table, NTABLE);
+
+	} // omp parallel
+
+	return ;
+}
+
+double DM_Potential_Profile(const int i, const float r)
+{
+	gsl_spline_eval(DMPsi_Spline, r, DMPsi_Acc);
 }
 
 /**********************************************************************/

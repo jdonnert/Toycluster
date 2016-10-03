@@ -15,13 +15,7 @@ static double inverted_dm_mass_Profile(double q, const int i);
 static void sample_DM_particles(const int);
 static void sample_Gas_particles(const int);
 
-/* Cummulative Mass table interpolation */
-static double dfdr_table[NTABLE], offset_table[NTABLE], 
-       Mass_profile_table[NTABLE];
-
-/*
- * Positions are sampled around 0 ! Haloes are moved into position later
- */
+/*Positions are sampled around 0 ! Haloes are moved into position later */
 
 void Make_positions()
 {
@@ -54,7 +48,7 @@ static void sample_DM_particles(const int i)
 
 	#pragma omp parallel for
     for (int ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM
-
+		
 		for (;;) { // DM halo M(<R) inverted
 
 			double theta = acos(2 *  erand48(Omp.Seed) - 1);
@@ -66,7 +60,7 @@ static void sample_DM_particles(const int i)
            	double sin_phi = sin(phi);
            	double cos_phi = cos(phi);
 
-           	double q =  erand48(Omp.Seed);  
+           	double q =  erand48(Omp.Seed);
            	double r = Inverted_DM_Mass_Profile(q, i);
 
            	double x = r * sin_theta * cos_phi;
@@ -75,7 +69,7 @@ static void sample_DM_particles(const int i)
 
 			if (i != Halo_containing(1, x+dCoM[0], y+dCoM[1], z+dCoM[2])) 
             	continue; // draw another one 
-			
+
 			Halo[i].DM[ipart].Pos[0] = (float) x;
            	Halo[i].DM[ipart].Pos[1] = (float) y;
            	Halo[i].DM[ipart].Pos[2] = (float) z;
@@ -216,6 +210,7 @@ void Show_mass_in_r200()
 }
 
 /* center on CoM */
+
 void center_positions()
 {
     const double mGas = Param.Mpart[0];
@@ -330,6 +325,7 @@ void Reassign_particles_to_halos()
 
 /* check for collision between position xyz and clusters
  * via maximum of density for gas particles and sampling radius for DM */
+
 int Halo_containing(const int type, const float x, const float y, const float z)
 {
 	const double boxsize = Param.Boxsize;

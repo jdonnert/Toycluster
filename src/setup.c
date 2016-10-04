@@ -53,7 +53,7 @@ void Setup()
 		Halo[i].Rho0_nfw = Halo[i].Mass200[1]
 						  / DM_Mass_Profile_NFW(Halo[i].R200,i);
 
-        /* (Springel & Farrar 07) */
+        /* Springel & Farrar 07 */
         Halo[i].A_hernq = Halo[i].Rs*sqrt(2*(log(1+c_nfw)-c_nfw/(1+c_nfw)));
     }
 
@@ -63,7 +63,7 @@ void Setup()
 	
     	Halo[i].R_Sample[0] = Halo[i].R200 * 1.8;
 		Halo[i].R_Sample[1] = Halo[i].R200 * 1.8;
-		Halo[i].Rcut = 1.4 *  Halo[i].R200; 
+		Halo[i].Rcut = 2 *  Halo[i].R200; 
 
 		if (i == 0) { // 0 provides a background
 
@@ -84,7 +84,7 @@ void Setup()
 		int cuspy = Halo[i].Have_Cuspy;
 
 		/* DM Mass */
-Halo[i].Mass[1] =   224483;
+
 		Setup_DM_Mass_Profile(i);
 
 		Halo[i].Mass[1] = DM_Mass_Profile(Halo[i].R_Sample[1], i);

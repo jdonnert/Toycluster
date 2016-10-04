@@ -212,10 +212,6 @@ static void calc_distribution_function_table(int iCluster)
 		y[i] = rho[NSAMPLE-i-1];
 	}
 
-	for (int i = 1; i < NSAMPLE; i++)
-		if (x[i-1] >= x[i])
-			printf("%d %g %g \n", i, x[i], x[i-1]);
-
 	#pragma omp parallel // make f(E) table
 	{
 
@@ -223,7 +219,7 @@ static void calc_distribution_function_table(int iCluster)
 
 	interpolation_parameters int_params; 
 	int_params.acc = gsl_interp_accel_alloc();
-	int_params.spline = gsl_spline_alloc(gsl_interp_cspline, NSAMPLE);
+	int_params.spline = gsl_spline_alloc(gsl_interp_akima, NSAMPLE);
 
 	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
 
@@ -242,7 +238,7 @@ static void calc_distribution_function_table(int iCluster)
 
 		gsl_function F = {&eddington_integrant, &int_params};
 		
-		gsl_integration_qags(&F, 0, E[i], 0, 1e-3, NSAMPLE, w, &fE[i], &err); 
+		gsl_integration_qags(&F, 0, E[i], 0, 1e-5, NSAMPLE, w, &fE[i], &err); 
 		
 		fE[i] /= sqrt8 * pi * pi;
 		
@@ -278,7 +274,7 @@ static void calc_distribution_function_table(int iCluster)
 	#pragma omp parallel
 	gsl_spline_init(fE_params.spline, x, y, NTABLE);
 	
-	for (int i = 0; i < NTABLE; i++) {
+	/*for (int i = 0; i < NTABLE; i++) {
 		
 		double r = rmin * pow(10, i*rstep);
 
@@ -290,7 +286,7 @@ static void calc_distribution_function_table(int iCluster)
 		double fe = distribution_function(E);
 
 		printf("%g %g %g \n", solution, fe, fabs(fe-solution)/solution);
-	}
+	}*/
 
 	return ;
 }

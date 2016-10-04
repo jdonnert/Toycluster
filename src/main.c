@@ -1,7 +1,7 @@
 #include "globals.h"
 
 /* Make IC of a cluster collision 
- * (Mastropietro+ 2008, Donnert 2014, Donnert+ 2016b) */
+ * (Mastropietro+ 2008, Donnert 2014, Donnert+ 2017) */
 
 int main(int argc, char *argv[])
 {

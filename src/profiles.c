@@ -4,7 +4,6 @@
 
 #define NTABLE 1024
 
-
 static void setup_internal_energy_profile(const int i);
 static void setup_gas_potential_profile(const int i);
 static void	setup_dm_potential_profile(const int i);
@@ -241,7 +240,7 @@ double DM_Potential_Profile(const int i, const float r)
 	gsl_spline_eval(DMPsi_Spline, r, DMPsi_Acc);
 }
 
-/**********************************************************************/
+/************ Gas Profiles *************/
 
 /* Double beta profile at rc and rcut */
 
@@ -265,11 +264,9 @@ double Gas_Density_Profile(const double r, const double rho0,
 	return rho;
 }
 
-/*
- * Mass profile from the gas density profile by numerical 
+/* Mass profile from the gas density profile by numerical 
  * integration and cubic spline interpolation. This has to be called once 
- * before the mass profile of a halo is used, to set the spline variables.
- */
+ * before the mass profile of a halo is used, to set the spline variables. */
 
 static gsl_spline *M_Spline = NULL;
 static gsl_interp_accel *M_Acc = NULL;
@@ -341,7 +338,7 @@ void Setup_Gas_Mass_Profile(const int j)
 		if (m_table[i] < m_table[i-1])
 			m_table[i] = m_table[i-1]; // integrator may fluctuate
 
-		printf("%g \n", m_table[i]);
+		//printf("%g \n", m_table[i]);
 			
 	}
 
@@ -539,10 +536,8 @@ double Gas_Potential_Profile_23(const int i, const float r)
 
 /**********************************************************************/
 
-/* 
- * Standard analytical temperature profile from Donnert et al. 2014.
- * To avoid negative temperatures we define rmax*sqrt3 as outer radius
- */
+/* Standard analytical temperature profile from Donnert et al. 2014.
+ * To avoid negative temperatures we define rmax*sqrt3 as outer radius */
 
 static double F1(const double r, const double rc, const double a)
 {
@@ -576,13 +571,11 @@ double Internal_Energy_Profile_Analytic(const int i, const double d)
 	return u;
 }
 
-/* 
- * Numerical solution for all kinds of gas densities. We spline interpolate 
+/* Numerical solution for all kinds of gas densities. We spline interpolate 
  * a table of solutions for speed. We have to solve the hydrostatic equation
- * (eq. 9 in Donnert 2014).
- */
+ * (eq. 9 in Donnert 2014). */
 
-#define TABLESIZE 1024
+#define NTABLE 1024
 
 static gsl_spline *U_Spline = NULL;
 static gsl_interp_accel *U_Acc = NULL;
@@ -603,10 +596,10 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 	double rcut = Halo[i].Rcut;
 	int is_cuspy = Halo[i].Have_Cuspy;
 	double a = Halo[i].A_hernq;
-	double Mdm = Halo[i].Mass[1];
+	double Mdm = 1.1*Halo[i].Mass[1];
 
 #ifdef NO_RCUT_IN_T
-	rcut = 1e5;
+	rcut = Infinity;
 #endif
 
 	double rho_gas = Gas_Density_Profile(r, rho0, beta, rc, rcut, is_cuspy);
@@ -620,20 +613,20 @@ static void setup_internal_energy_profile(const int i)
 {
 	gsl_function gsl_F = { 0 };
 
-	double u_table[TABLESIZE] = { 0 }, r_table[TABLESIZE] = { 0 };
+	double u_table[NTABLE] = { 0 }, r_table[NTABLE] = { 0 };
 
 	double rmin = 0.1;
 	double rmax = Param.Boxsize * sqrt(3);
-	double dr = ( log10(rmax/rmin) ) / (TABLESIZE-1);
+	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
 
 	#pragma omp parallel 
 	{
 	
 	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(2*TABLESIZE);
+	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 	
 	#pragma omp for
-	for (int j = 1; j < TABLESIZE;  j++) {
+	for (int j = 1; j < NTABLE;  j++) {
 	
 		double error = 0;
 
@@ -644,8 +637,8 @@ static void setup_internal_energy_profile(const int i)
 		gsl_F.function = &u_integrant;
 		gsl_F.params = (void *) &i;
 
-		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-5, 2*TABLESIZE, 
-				GSL_INTEG_GAUSS41, gsl_workspace, &u_table[j], &error);
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-5, NTABLE, 
+				GSL_INTEG_GAUSS61, gsl_workspace, &u_table[j], &error);
 
 		double rho0 = Halo[i].Rho0;
 		double rc = Halo[i].Rcore;
@@ -656,7 +649,7 @@ static void setup_internal_energy_profile(const int i)
 #ifdef NO_RCUT_IN_T
 		rcut = 1e6;
 #endif
-		double rho_gas = Gas_Density_Profile(r, rho0, beta, rc, rcut, is_cuspy);
+		double rho_gas = Gas_Density_Profile(r,rho0, beta, rc, rcut, is_cuspy);
 
 		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
 		
@@ -665,14 +658,14 @@ static void setup_internal_energy_profile(const int i)
 	}
 
 	u_table[0] = u_table[1];
-	//u_table[TABLESIZE-1] = 0;
+	//u_table[NTABLE-1] = 0;
 
 	gsl_integration_workspace_free(gsl_workspace);
 	
 	U_Acc = gsl_interp_accel_alloc();
 
-	U_Spline = gsl_spline_alloc(gsl_interp_cspline, TABLESIZE);
-	gsl_spline_init(U_Spline, r_table, u_table, TABLESIZE);
+	U_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	gsl_spline_init(U_Spline, r_table, u_table, NTABLE);
 	
 	} // omp parallel
 

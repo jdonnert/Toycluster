@@ -16,7 +16,15 @@ static struct int_param {
 	double cuspy;
 } ip;
 
-/* This file contains all physical profiles that describe the cluster model */
+/* This file contains all physical profiles that describe the cluster model.
+ * All profiles follow the same scheme: define an integrant, make a table of
+ * solutions using a GSL integrator, spline interpolate the table for speed
+ * and accuracy. If the spline interpolation fails, its usually, because the
+ * table contains data that is not strictly increasing in x. We include 
+ * analytical profiles for testing as well, however numerical stability is the
+ * ultimate test of the model.
+ * To setup the profiles for a given halo, Setup_Profiles has to be called in
+ * the parent routine. */
 
 void Setup_Profiles(const int i)
 {
@@ -27,24 +35,26 @@ void Setup_Profiles(const int i)
 	if (Cosmo.Baryon_Fraction > 0) {
 
 		Setup_Gas_Mass_Profile(i);
+
 		setup_gas_potential_profile(i);
+
 		setup_internal_energy_profile(i);
 	}
 
 	return ;
 }
 
-/* As the NFW does not converge, we have to cut it off after R_Sample */
+/* As the NFW does not converge, we have to cut it off around R_Sample */
 
 double DM_Density_Profile(const int i, const float r)
 {
     const double rs = Halo[i].Rs;
     const double rho0 = Halo[i].Rho0_nfw; 
-	const double rmax = Halo[i].R_Sample[1];
+	const double rmax = 1.1 * Halo[i].R_Sample[1];
 
 	double rho_nfw = rho0 / (r/rs * p2(1+r/rs));
 
-	return rho_nfw / (1+ p2(r/rmax)); // cutoff
+	return rho_nfw / (1+ p2(r/rmax)); // with cutoff
 }
 
 double Hernquist_Density_Profile(const double m, const double a, const double r)
@@ -52,14 +62,7 @@ double Hernquist_Density_Profile(const double m, const double a, const double r)
 	return m / (2*pi) * a/(r*p3(r+a)); // Hernquist 1989, eq. 2 , eq. 17-19
 }
 
-double DM_Mass_Profile_NFW(const double r, const int i)
-{
-	double rs = Halo[i].Rs;
-	double rho0 = Halo[i].Rho0_nfw; // (Wiki, Mo+ 2010)
-
-	return 4*pi*rho0*p3(rs) * (log((rs+r)/rs) - r/(rs+r));
-}
-
+/* DM cumulative mass profile from an arbitrary DM density profile */
 
 static gsl_spline *DMMinv_Spline = NULL;
 static gsl_interp_accel *DMMinv_Acc = NULL;
@@ -81,7 +84,7 @@ double Inverted_DM_Mass_Profile(double q, const int i)
 	return gsl_spline_eval(DMMinv_Spline, m, DMMinv_Acc);
 }
 
-static double dmm_integrant(double r, void * param)
+static double dm_mr_integrant(double r, void * param)
 {
 	int i = *((int *) param); 
 	
@@ -112,10 +115,10 @@ void Setup_DM_Mass_Profile(const int iCluster)
 
 		int ip = iCluster;
 	
-		gsl_F.function = &dmm_integrant;
+		gsl_F.function = &dm_mr_integrant;
 		gsl_F.params = (void *) &ip;
 
-		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-6, NTABLE, 
+		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-4, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
 	}
 
@@ -143,31 +146,28 @@ void Setup_DM_Mass_Profile(const int iCluster)
 	return ;
 }
 
-
-double DM_Potential_Profile_NFW(const int i, const float r)
+double DM_Mass_Profile_NFW(const double r, const int i)
 {
-	double rmax = Halo[i].R_Sample[1];
 	double rs = Halo[i].Rs;
-    double rho0 = Halo[i].Rho0_nfw; 
+	double rho0 = Halo[i].Rho0_nfw; // (Wiki, Mo+ 2010)
 
-	return G * Halo[i].Mass[1]/rs/2 * (1 - p2(r/(r+rs))); // Mo+ 2010, 5.164
+	return 4*pi*rho0*p3(rs) * (log((rs+r)/rs) - r/(rs+r));
 }
+
+/* We need the precise potential up to very large distances. Because the
+ * numerical integrator runs into precision issues for large r, we extra-
+ * polate linearly the potential in log space beyond 1 Gpc */
 
 static gsl_spline *DMPsi_Spline = NULL;
 static gsl_interp_accel *DMPsi_Acc = NULL;
 #pragma omp threadprivate(DMPsi_Spline, DMPsi_Acc)
 
-static double dmpsi_integrant(const double r, void * param)
+static double dm_psi_integrant(const double r, void * param)
 {
 	int i = *((int *) param); 
 
 	return G/p2(r) * DM_Mass_Profile(r, i);
 }
-
-
-/* We need the precise potential up to very large distances. Because the
- * numerical integrator runs into precision issues for large r, we extra-
- * polate linearly the potential in log space beyond 1 Gpc */
 
 static void	setup_dm_potential_profile(const int iCluster)
 {
@@ -191,7 +191,7 @@ static void	setup_dm_potential_profile(const int iCluster)
 
 		int ip = iCluster;
 	
-		gsl_F.function = &dmpsi_integrant;
+		gsl_F.function = &dm_psi_integrant;
 		gsl_F.params = (void *) &ip;
 
 		gsl_integration_qag(&gsl_F, Zero, r_table[i], 0, 1e-7, NTABLE, 
@@ -240,6 +240,15 @@ double DM_Potential_Profile(const int i, const float r)
 	gsl_spline_eval(DMPsi_Spline, r, DMPsi_Acc);
 }
 
+double DM_Potential_Profile_NFW(const int i, const float r)
+{
+	double rmax = Halo[i].R_Sample[1];
+	double rs = Halo[i].Rs;
+    double rho0 = Halo[i].Rho0_nfw; 
+
+	return G * Halo[i].Mass[1]/rs/2 * (1 - p2(r/(r+rs))); // Mo+ 2010, 5.164
+}
+
 /************ Gas Profiles *************/
 
 /* Double beta profile at rc and rcut */
@@ -264,7 +273,7 @@ double Gas_Density_Profile(const double r, const double rho0,
 	return rho;
 }
 
-/* Mass profile from the gas density profile by numerical 
+/* Cumulative Mass profile from the gas density profile by numerical 
  * integration and cubic spline interpolation. This has to be called once 
  * before the mass profile of a halo is used, to set the spline variables. */
 
@@ -310,9 +319,9 @@ void Setup_Gas_Mass_Profile(const int j)
 	double r_table[NTABLE] = { 0 };
 	double dr_table[NTABLE] = { 0 };
 
-	double rmin = 0.1;
+	double rmin = Zero;
 
-	Rmax = Halo[j].R_Sample[0]*1.1; // include R_Sample
+	Rmax = Halo[j].R_Sample[0]*1.5; // include R_Sample
 
 	double log_dr = ( log10(Rmax/rmin) ) / (NTABLE - 1);
 	
@@ -333,7 +342,7 @@ void Setup_Gas_Mass_Profile(const int j)
 		gsl_F.params = (void *) &ip;
 
 		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-6, NTABLE, 
-				GSL_INTEG_GAUSS41, gsl_workspace, &m_table[i], &error);
+				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
 
 		if (m_table[i] < m_table[i-1])
 			m_table[i] = m_table[i-1]; // integrator may fluctuate
@@ -360,9 +369,7 @@ void Setup_Gas_Mass_Profile(const int j)
 	return ;
 }
 
-/* 
- * return M(<= R) of a beta profile with beta=2/3 
- */
+/* M(<= R) of a beta profile with beta=2/3 */
 
 double Mass_Profile_23(const double r, const int i)
 {	
@@ -404,9 +411,8 @@ double Mass_Profile_23(const double r, const int i)
 	return 4 * pi * Mr;
 }
 
-/*
- * The grav. potential from the gas density.
- */
+/* The grav. potential from the gas density. We solve Poisson's equation 
+ * numerically. Here psi is the -phi, always >= 0 */
 
 static gsl_spline *Psi_Spline = NULL;
 static gsl_interp_accel *Psi_Acc = NULL;
@@ -438,33 +444,34 @@ static void setup_gas_potential_profile(const int i)
 {
 	double error = 0;
 
+
+	double psi_table[NTABLE] = { 0 };
+	double r_table[NTABLE] = { 0 };
+
+	double rmin = Zero;
+	double rmax = Halo[i].R_Sample[0] * 1.5;
+	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
+
+	double gauge = 0;
+	
 	gsl_function gsl_F = { 0 };
 	gsl_F.function = &psi_integrant;
 	gsl_F.params = (void *) &i;
 
 	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(4096);
+	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 
-	double psi_table[NTABLE] = { 0 };
-	double r_table[NTABLE] = { 0 };
-
-	double rmin = 1;
-	double rmax = Halo[i].R_Sample[0] * 1.1;
-	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
-
-	double gauge = 0;
-	
-	gsl_integration_qag(&gsl_F, 0, 1e100, 0, 1e-6, 4096, 
+	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-4, NTABLE, 
 			GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
 	
 	for (int j = 1; j < NTABLE; j++) {
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 		
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, 4096, 
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 
-		psi_table[j] = -1*(psi_table[j] - gauge);
+		psi_table[j] = -1*(psi_table[j] - gauge); // psi = -phi > 0
 	}
 	
 	r_table[0] = 0;
@@ -483,7 +490,7 @@ static void setup_gas_potential_profile(const int i)
 	return ;
 }
 
-double Gas_Potential_Profile_23(const int i, const float r)
+double Gas_Potential_Profile_23(const int i, const float r) // beta = 2/3
 {
 	if (r > 2*Halo[i].Rcut)
 		return 0;
@@ -534,9 +541,108 @@ double Gas_Potential_Profile_23(const int i, const float r)
 	return 4*pi*G * psi;
 }
 
-/**********************************************************************/
 
-/* Standard analytical temperature profile from Donnert et al. 2014.
+
+/* Numerical solution for all kinds of gas densities. We spline interpolate 
+ * a table of solutions for speed. We have to solve the hydrostatic equation
+ * (eq. 9 in Donnert 2014). */
+
+static gsl_spline *U_Spline = NULL;
+static gsl_interp_accel *U_Acc = NULL;
+#pragma omp threadprivate(U_Spline, U_Acc)
+
+double Internal_Energy_Profile(const int i, const double r)
+{
+	return gsl_spline_eval(U_Spline, r, U_Acc);;
+}
+
+static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
+{
+	int i = *((int *) param);
+
+	double rho0 = Halo[i].Rho0;
+	double rc = Halo[i].Rcore;
+	double beta = Halo[i].Beta;
+	double rcut = Halo[i].Rcut;
+	int is_cuspy = Halo[i].Have_Cuspy;
+	double a = Halo[i].A_hernq;
+	double Mdm = 1.1*Halo[i].Mass[1]; // bias this for stability
+
+#ifdef NO_RCUT_IN_T
+	rcut = Infinity;
+#endif
+
+	double rho_gas = Gas_Density_Profile(r, rho0, beta, rc, rcut, is_cuspy);
+	double Mr_Gas = Gas_Mass_Profile(r, i);
+	double Mr_DM = DM_Mass_Profile(r,i);
+
+	return rho_gas /(r*r) * (Mr_Gas + Mr_DM);
+}
+
+static void setup_internal_energy_profile(const int i)
+{
+	double u_table[NTABLE] = { 0 }, 
+		   r_table[NTABLE] = { 0 };
+
+	double rmin = Zero;
+	double rmax = Param.Boxsize * sqrt(3);
+	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
+
+	#pragma omp parallel 
+	{
+	
+	gsl_function gsl_F = { 0 };
+
+	gsl_integration_workspace *gsl_workspace = NULL;
+	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
+	
+	#pragma omp for
+	for (int j = 1; j < NTABLE;  j++) {
+	
+		double error = 0;
+
+		double r = rmin * pow(10, dr * j);
+		
+		r_table[j] = r;
+
+		gsl_F.function = &u_integrant;
+		gsl_F.params = (void *) &i;
+
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-5, NTABLE, 
+				GSL_INTEG_GAUSS61, gsl_workspace, &u_table[j], &error);
+
+		double rho0 = Halo[i].Rho0;
+		double rc = Halo[i].Rcore;
+		double beta = Halo[i].Beta;
+		double rcut = Halo[i].Rcut;
+		int is_cuspy = Halo[i].Have_Cuspy;
+
+#ifdef NO_RCUT_IN_T
+		rcut = Infinity;
+#endif
+		double rho_gas = Gas_Density_Profile(r,rho0, beta, rc, rcut, is_cuspy);
+
+		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
+		
+		//printf("%d %g %g %g %g \n", j,r, rho_gas, u_table[j], 
+		//						u_integrant(r, (void *)&i ));
+	}
+
+	u_table[0] = u_table[1];
+
+	gsl_integration_workspace_free(gsl_workspace);
+	
+	U_Acc = gsl_interp_accel_alloc();
+
+	U_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	gsl_spline_init(U_Spline, r_table, u_table, NTABLE);
+	
+	} // omp parallel
+
+	return ;
+}
+
+/* Standard analytical temperature profile from Donnert 2014.
  * To avoid negative temperatures we define rmax*sqrt3 as outer radius */
 
 static double F1(const double r, const double rc, const double a)
@@ -569,105 +675,4 @@ double Internal_Energy_Profile_Analytic(const int i, const double d)
                 ( Mdm * (F1(rmax, rc, a) - F1(d, rc, a))
                 + 4*pi*rho0*p3(rc) * (F2(rmax, rc) - F2(d, rc) ) );
 	return u;
-}
-
-/* Numerical solution for all kinds of gas densities. We spline interpolate 
- * a table of solutions for speed. We have to solve the hydrostatic equation
- * (eq. 9 in Donnert 2014). */
-
-#define NTABLE 1024
-
-static gsl_spline *U_Spline = NULL;
-static gsl_interp_accel *U_Acc = NULL;
-#pragma omp threadprivate(U_Spline, U_Acc)
-
-double Internal_Energy_Profile(const int i, const double r)
-{
-	return gsl_spline_eval(U_Spline, r, U_Acc);;
-}
-
-static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
-{
-	int i = *((int *) param);
-
-	double rho0 = Halo[i].Rho0;
-	double rc = Halo[i].Rcore;
-	double beta = Halo[i].Beta;
-	double rcut = Halo[i].Rcut;
-	int is_cuspy = Halo[i].Have_Cuspy;
-	double a = Halo[i].A_hernq;
-	double Mdm = 1.1*Halo[i].Mass[1];
-
-#ifdef NO_RCUT_IN_T
-	rcut = Infinity;
-#endif
-
-	double rho_gas = Gas_Density_Profile(r, rho0, beta, rc, rcut, is_cuspy);
-	double Mr_Gas = Gas_Mass_Profile(r, i);
-	double Mr_DM = DM_Mass_Profile(r,i);
-
-	return rho_gas /(r*r) * (Mr_Gas + Mr_DM);
-}
-
-static void setup_internal_energy_profile(const int i)
-{
-	gsl_function gsl_F = { 0 };
-
-	double u_table[NTABLE] = { 0 }, r_table[NTABLE] = { 0 };
-
-	double rmin = 0.1;
-	double rmax = Param.Boxsize * sqrt(3);
-	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
-
-	#pragma omp parallel 
-	{
-	
-	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
-	
-	#pragma omp for
-	for (int j = 1; j < NTABLE;  j++) {
-	
-		double error = 0;
-
-		double r = rmin * pow(10, dr * j);
-		
-		r_table[j] = r;
-
-		gsl_F.function = &u_integrant;
-		gsl_F.params = (void *) &i;
-
-		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-5, NTABLE, 
-				GSL_INTEG_GAUSS61, gsl_workspace, &u_table[j], &error);
-
-		double rho0 = Halo[i].Rho0;
-		double rc = Halo[i].Rcore;
-		double beta = Halo[i].Beta;
-		double rcut = Halo[i].Rcut;
-		int is_cuspy = Halo[i].Have_Cuspy;
-
-#ifdef NO_RCUT_IN_T
-		rcut = 1e6;
-#endif
-		double rho_gas = Gas_Density_Profile(r,rho0, beta, rc, rcut, is_cuspy);
-
-		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
-		
-		//printf("%d %g %g %g %g \n", j,r, rho_gas, u_table[j], 
-		//						u_integrant(r, (void *)&i ));
-	}
-
-	u_table[0] = u_table[1];
-	//u_table[NTABLE-1] = 0;
-
-	gsl_integration_workspace_free(gsl_workspace);
-	
-	U_Acc = gsl_interp_accel_alloc();
-
-	U_Spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
-	gsl_spline_init(U_Spline, r_table, u_table, NTABLE);
-	
-	} // omp parallel
-
-	return ;
 }

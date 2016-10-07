@@ -3,7 +3,7 @@ SHELL = /bin/bash
 ## OPTIONS  ##
 OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
 
-OPT += -DBETA=0.54
+OPT += -DBETA=0.5
 
 #OPT     += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
@@ -15,8 +15,8 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 #OPT	+= -DNO_RCUT_IN_T		# set Rcut very large
 
 #OPT	+= -DSUBSTRUCTURE	# add substructure
-#OPT += -DSUBHOST=1		# host halos
-#OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
+#OPT += -DSUBHOST=0		# host halos
+#OPT += -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
 #OPT += -DREPORTSUBHALOS		# print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
@@ -37,7 +37,7 @@ GSL_LIBS = $(LDFLAGS)
 
 ifeq ($(SYSTYPE),DARWIN)
 CC      	=  icc
-OPTIMIZE	= -m64  -O0 #-xhost -fast
+OPTIMIZE	= -m64  -xhost -O3
 GSL_INCL 	= $(CPPFLAGS)
 GSL_LIBS	= -L/Users/jdonnert/Dev/lib
 endif

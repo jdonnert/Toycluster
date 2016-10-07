@@ -28,19 +28,26 @@ static struct int_param {
 
 void Setup_Profiles(const int i)
 {
+printf("\nA");
 	Setup_DM_Mass_Profile(i);
 
+printf("B");
 	setup_dm_potential_profile(i);
 
-	if (Cosmo.Baryon_Fraction > 0) {
+printf("C");
+	if ((Cosmo.Baryon_Fraction > 0) && (Halo[i].Is_Stripped == false)) {
 
+printf("D");
 		Setup_Gas_Mass_Profile(i);
 
+printf("E");
 		setup_gas_potential_profile(i);
 
+printf("F");
 		setup_internal_energy_profile(i);
 	}
 
+printf("G\n");
 	return ;
 }
 
@@ -461,14 +468,14 @@ static void setup_gas_potential_profile(const int i)
 	gsl_integration_workspace *gsl_workspace = NULL;
 	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 
-	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-4, NTABLE, 
+	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-2, NTABLE, 
 			GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
 	
 	for (int j = 1; j < NTABLE; j++) {
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 		
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, NTABLE, 
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-2, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 
 		psi_table[j] = -1*(psi_table[j] - gauge); // psi = -phi > 0

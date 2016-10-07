@@ -35,8 +35,10 @@ void Setup_Substructure()
 	if (Param.Mass_Ratio != 0)
 		Sub.First = 2;
 
+printf("a\n");
 	Sub.MassFraction = subhalo_mass_fraction(); 
 
+printf("b\n");
 	set_subhalo_masses(Sub.MassFraction);
 	
 	for (int i = Sub.First; i < Param.Nhalos; i++) { 
@@ -45,9 +47,12 @@ void Setup_Substructure()
 
 		do {
 			
+printf("c\n");
 			set_subhalo_positions(i); 
 			
+printf("d\n");
 			set_subhalo_properties(i);
+printf("e\n");
 		
 		} while (reject_subhalo(i));
 
@@ -182,9 +187,7 @@ static void set_subhalo_masses(const double mass_fraction)
 	return ;
 }
 
-/* 
- * Sample mass dependent subhalo density profile (Gao+ 2002) 
- */
+/* Sample mass dependent subhalo density profile (Gao+ 2002) */
 
 static void set_subhalo_positions(int i)
 {
@@ -194,8 +197,7 @@ static void set_subhalo_positions(int i)
 
 	double q = erand48(Omp.Seed);
 
-	double r = Halo[SUBHOST].R200 * 
-		inverted_subhalo_number_density_profile(q);
+	double r = Halo[SUBHOST].R200 * inverted_subhalo_number_density_profile(q);
 
 	float theta = acos(2 *  erand48(Omp.Seed) - 1);
    	float phi = 2*pi * erand48(Omp.Seed);
@@ -219,11 +221,9 @@ static void set_subhalo_positions(int i)
 	return ;
 }
 
-/* 
-* here we impose restrictions on subhalos.
-* 1) they cannot overlap 
-* 2) they have to be an substantial overdensity 
-*/
+/* here we impose restrictions on subhalos.
+ * 1) they cannot overlap 
+ * 2) they have to be an substantial overdensity */
 
 static bool reject_subhalo(const int i)
 {
@@ -250,10 +250,8 @@ static bool reject_subhalo(const int i)
 
 	double r = sqrt(dx*dx + dy*dy + dz*dz);
 
-	double rho_host = Hernquist_density_profile(Halo[0].Mass[1], 
-				Halo[0].A_hernq, r);
-	double rho_sub = Hernquist_density_profile(Halo[i].Mass[1], 
-				Halo[i].A_hernq, 3 * Param.GravSofteningLength);
+	double rho_host = DM_Density_Profile(SUBHOST, r);
+	double rho_sub = DM_Density_Profile(i, 3 * Param.GravSofteningLength);
 
 	if (rho_sub < rho_host*MIN_DENSITY_CONTRAST) 
 		resample = true;
@@ -287,6 +285,7 @@ static void set_subhalo_properties(const int i)
 	double r200 = Halo[SUBHOST].R200;
 	double c_nfw = 0;
 	double rsample = 0;
+	double rho0_nfw = 0;
 
 	int cnt = 0;
 	
@@ -298,9 +297,13 @@ static void set_subhalo_properties(const int i)
 
 		rsample = fmin(rsample, r200*0.5);
 
-		c_nfw = Concentration_parameter(i);
+		Halo[i].C_nfw = c_nfw = Concentration_parameter(i);
 
 		Halo[i].Rs = nfw_scale_radius(c_nfw, Halo[i].Mass[1], rsample);
+		
+		Halo[i].Rho0_nfw = 1;
+		Halo[i].Rho0_nfw = rho0_nfw = Halo[i].Mass200[1]
+						  		  / DM_Mass_Profile_NFW(Halo[i].R200,i);
 
 		a = Halo[i].Rs*sqrt(2*(log(1+c_nfw) - c_nfw/(1+c_nfw)));
 
@@ -325,13 +328,13 @@ static void set_subhalo_properties(const int i)
 	const double r_strip = 0; //.1* Halo[0].R200; 
 					// gas is assumed stripped beyond this radius
 
-	Halo[i].Rcut = 0.6*Halo[i].R_Sample[0];
+	Halo[i].Rcut = 0.6 * Halo[i].R_Sample[0];
 
 	Halo[i].Mass200[1] = nfw_mass_profile(c_nfw, Halo[i].Rs, r200);
 
 	if (r_i > r_strip)
 		Halo[i].Mass200[0] = Halo[i].Mass200[1] 
-			/ (1/Cosmo.Baryon_Fraction - 1);
+							/ (1/Cosmo.Baryon_Fraction - 1);
 
 #ifdef ADD_THIRD_SUBHALO
 	if (i == Sub.First)
@@ -355,18 +358,18 @@ static void set_subhalo_properties(const int i)
 	
 	Halo[i].Is_Stripped  = true;
 	
-	Setup_Mass_Profile(i);
+	Setup_Profiles(i);
 	
 	if (r_i > r_strip) {
 	
 		Halo[i].Is_Stripped  = false;
 		
-		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0],i);
+		Halo[i].Mass[0] = Gas_Mass_Profile(Halo[i].R_Sample[0],i);
 	}
 
 #ifdef ADD_THIRD_SUBHALO
 	if (i == Sub.First)
-		Halo[i].Mass[0] = Mass_profile(Halo[i].R_Sample[0], i);
+		Halo[i].Mass[0] = Gas_Mass_Profile(Halo[i].R_Sample[0], i);
 #endif
 
 	Halo[i].Mtotal = Halo[i].Mass[0] + Halo[i].Mass[1];
@@ -433,18 +436,21 @@ static void	set_subhalo_pointers()
 
 static double sampling_radius(const int i, const double d)
 {
-	const double rho_host = 
-		Hernquist_density_profile(Halo[0].Mass[1], Halo[0].A_hernq, d);
+	const double rho_host = DM_Density_Profile(SUBHOST, d);
 		
-	const double m = Halo[i].Mass[1], a = Halo[i].A_hernq;
+	const double m = Halo[i].Mass[1], 
+		  		 a = Halo[i].A_hernq;
 
-	double left = 0, right = 10*Halo[0].R200, r = 0, delta = DBL_MAX;	
+	double left = 0, 
+		   right = 10*Halo[0].R200, 
+		   r = 0, 
+		   delta = DBL_MAX;	
 	
 	while (fabs(delta) > 1e-3) { // find root bisection
 	
 		r = left + 0.5 * (right - left);
 
-		delta = (Hernquist_density_profile(m, a, r) - rho_host)/rho_host;
+		delta = (DM_Density_Profile(i, r) - rho_host)/rho_host;
 
 		if (delta < 0)
 			right = r;

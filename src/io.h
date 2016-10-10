@@ -32,11 +32,11 @@ enum iofields{
     IO_POS,
     IO_VEL,
     IO_ID,
-	IO_RHO,
-	IO_RHOMODEL,
-    IO_HSML,
     IO_U,
+	IO_RHO,
+    IO_HSML,
     IO_BFLD,
+	IO_RHOMODEL,
     IO_LASTENTRY
 };
 

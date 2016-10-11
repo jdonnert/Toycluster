@@ -3,6 +3,8 @@
 
 #include "globals.h"
 
+#define R200_RSAMPLE_RATIO 1.5
+
 /* 
  * Set all relevant parameters for the collision. This is a mess.
  * We first find R200 from the baryon fraction in R200 and the total mass
@@ -14,7 +16,7 @@ void Setup()
 {
     double mtot[2] = {0}, mDM, mGas;
     double d_clusters;
-    char string[255];
+    char string[256];
     
 	const double bf = Cosmo.Baryon_Fraction;
     const double Xm = Param.Mass_Ratio;
@@ -61,9 +63,9 @@ void Setup()
 
     for (int i = 0; i < Param.Nhalos; i++) { // Baryons and total mass 
 	
-    	Halo[i].R_Sample[0] = Halo[i].R200 * 1.8;
-		Halo[i].R_Sample[1] = Halo[i].R200 * 1.8;
-		Halo[i].Rcut = 2 *  Halo[i].R200; 
+    	Halo[i].R_Sample[0] = Halo[i].R200 * R200_RSAMPLE_RATIO;
+		Halo[i].R_Sample[1] = Halo[i].R200 * R200_RSAMPLE_RATIO;
+		Halo[i].Rcut = 1.5 *  Halo[i].R200; 
 
 		if (i == 0) { // 0 provides a background
 

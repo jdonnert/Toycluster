@@ -3,7 +3,7 @@ SHELL = /bin/bash
 ## OPTIONS  ##
 OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
 
-OPT += -DBETA=0.5
+OPT += -DBETA=0.66666
 
 #OPT     += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
@@ -12,7 +12,7 @@ OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
 
 #OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
 
-#OPT	+= -DNO_RCUT_IN_T		# set Rcut very large
+OPT	+= -DNO_RCUT_IN_T		# set Rcut very large
 
 #OPT	+= -DSUBSTRUCTURE	# add substructure
 #OPT += -DSUBHOST=0		# host halos

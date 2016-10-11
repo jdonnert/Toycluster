@@ -49,7 +49,7 @@ void Regularise_sph_particles()
 #ifdef SPH_CUBIC_SPLINE
 	double step = 0.035;
 #else
-	double step = 0.008;
+	double step = 0.007;
 
 	if (Param.Mtotal < 1e5)
 		step = 0.00425;

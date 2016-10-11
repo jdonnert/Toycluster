@@ -29,10 +29,7 @@ void Make_temperatures()
 
             double r = sqrt(dx*dx + dy*dy + dz*dz);
 
-            double u = Internal_Energy_Profile(i, r);
-			//double u_ana = Internal_Energy_Profile_Analytic(i, r);
-			
-			Halo[i].SphP[ipart].U = u;
+			Halo[i].SphP[ipart].U = Internal_Energy_Profile(i, r);
 		}
     }
     

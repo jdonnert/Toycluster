@@ -53,32 +53,31 @@ void Make_velocities()
 
             double r = fmax(RMIN, sqrt(dx*dx + dy*dy + dz*dz)); 
 			
-			double pot = potential_profile(i, r); // rejection sampling
-            double vmax = sqrt(-2*pot);
-            double emax = pot;
+			/* rejection sampling */
 
-			double qmax = 4*pi * p2(vmax)/M * distribution_function(-emax);
+			double psi = potential_profile(i, r); // psi = -phi >= 0
+            double vmax = sqrt(2*psi); // particle has to be bound
+            double emax = psi;
+
+			double qmax = 4*pi * p2(vmax)/M * distribution_function(emax);
 
             double v = 0;
             
-			int j = 0;
-
-			for (j = 0; j < 90000; j++) { // Ascasibar+ 2005, Press+ 1992
+			for (int i = 0; i < 9000; i++) { // Ascasibar+ 2005, Press+ 1992
 
                 double lower_bound = qmax * erand48(Omp.Seed);
 
                 v = vmax * erand48(Omp.Seed);
 
-                double Etot = 0.5 * v*v + pot;  
+                double Etot = 0.5 * v*v - psi;  
 
 				double q = 4*pi * p2(v)/M * distribution_function(-Etot);
 
 				if (q >= lower_bound)
 					break;
-            }
-    
-			if (j == 90000)
+
 				v = 0;
+            }
 
             double theta = acos(2 *  erand48(Omp.Seed) - 1);
             double phi = 2*pi * erand48(Omp.Seed);
@@ -90,7 +89,7 @@ void Make_velocities()
         } // for ipart
 
 #if defined(SUBSTRUCTURE) && defined(SLOW_SUBSTRUCTURE)
-		if(i == 0) // at main cluster only, because we take its f(E)
+		if(i == SUBHOST) // at main cluster only, because we take its f(E)
 			set_subhalo_bulk_velocities();
 #endif
 		
@@ -173,7 +172,11 @@ static interpolation_parameters fE_params;
 
 static double distribution_function(const double E)
 {
-	return gsl_spline_eval(fE_params.spline, E, fE_params.acc);
+	double log_E = log10(E);
+
+	double log10_fE =  gsl_spline_eval(fE_params.spline, log_E, fE_params.acc);
+
+	return pow(10, log10_fE);
 }
 
 static void calc_distribution_function_table(int iCluster)
@@ -193,8 +196,8 @@ static void calc_distribution_function_table(int iCluster)
 
 		rho[i] = DM_Density_Profile(iCluster, r);
 
-		psi[i] = -potential_profile(iCluster, r); 
-		
+		psi[i] = potential_profile(iCluster, r); // psi = - phi
+
 		//printf("%d %g %g %g \n", i, r, rho[i], psi[i]);
 	}
 
@@ -210,6 +213,8 @@ static void calc_distribution_function_table(int iCluster)
 	
 		x[i] = psi[NSAMPLE-i-1];
 		y[i] = rho[NSAMPLE-i-1];
+		
+		//printf("%d %g %g \n", i, x[i], y[i]);
 	}
 
 	#pragma omp parallel // make f(E) table
@@ -234,7 +239,7 @@ static void calc_distribution_function_table(int iCluster)
 
 		double r = rmin * pow(10, i*rstep);
 
-		int_params.E = E[i] = -potential_profile(iCluster, r);
+		int_params.E = E[i] = potential_profile(iCluster, r);
 
 		gsl_function F = {&eddington_integrant, &int_params};
 		
@@ -246,8 +251,6 @@ static void calc_distribution_function_table(int iCluster)
 		//		hernquist_distribution_func(iCluster, E[i]), err/fE[i], 
 		//		eddington_integrant(0.5*E[i], &int_params));
 	}
-
-	fE[0] = fE[1]; // avoid singularity at r=0, E=Emax
 
 	E[NTABLE-1] = 0; // r == inf, f(E) -> 0
 	fE[NTABLE-1] = 0;
@@ -262,23 +265,26 @@ static void calc_distribution_function_table(int iCluster)
 	#pragma omp parallel
 	{
 	fE_params.acc = gsl_interp_accel_alloc();
-	fE_params.spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
+	fE_params.spline = gsl_spline_alloc(gsl_interp_akima, NTABLE);
 	}
 	
-	for (int i = 0; i < NTABLE; i++) {
+	int nSpline = 0;
+
+	for (int i = 0; i < NTABLE; i++) { // interpolate fE in log space
+
+		x[i] = log10(E[NTABLE-i-1]);
 		
-		x[i] = E[NTABLE-i-1];
-		
-		y[i] = fE[NTABLE-i-1];
+		y[i] = log10(fE[NTABLE-i-1]);
 	}
+
 	#pragma omp parallel
 	gsl_spline_init(fE_params.spline, x, y, NTABLE);
-	
+
 	/*for (int i = 0; i < NTABLE; i++) {
 		
 		double r = rmin * pow(10, i*rstep);
 
-		double E = -potential_profile(iCluster, r);
+		double E = potential_profile(iCluster, r);
 
 		printf("%d %g %g ", i, r, E);
 
@@ -286,7 +292,7 @@ static void calc_distribution_function_table(int iCluster)
 		double fe = distribution_function(E);
 
 		printf("%g %g %g \n", solution, fe, fabs(fe-solution)/solution);
-	}*/
+	} */
 
 	return ;
 }
@@ -308,12 +314,14 @@ static double eddington_integrant(double psi, void *params)
 	return result;
 }
 
+
+/* This is the absolute potential psi = -phi.  */
 static double potential_profile(const int i, const float r)
 {
-	double psi = DM_Potential_Profile(i, r); // DM generated potential
+	double psi = fabs(DM_Potential_Profile(i, r)); // DM generated potential
 	
 	if (Halo[i].Npart[0]) // Gas generated potential
-		psi += Gas_Potential_Profile(i,r);
+		psi += fabs(Gas_Potential_Profile(i,r));
 
 	return psi; 
 }
@@ -358,7 +366,7 @@ void set_subhalo_bulk_velocities()
 		
 		double r = sqrt(dx*dx + dy*dy + dz*dz); 
 
-		double pot = potential_profile(i, r);
+		double pot = -potential_profile(i, r);
         double vmax = sqrt(-2*pot);
         double emax = -pot;
 		double qmax = 4*pi * p2(vmax)/M * distribution_function(emax);

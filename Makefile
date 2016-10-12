@@ -37,7 +37,7 @@ GSL_LIBS = $(LDFLAGS)
 
 ifeq ($(SYSTYPE),DARWIN)
 CC      	=  icc
-OPTIMIZE	= -m64  -xhost -O3
+OPTIMIZE	= -fast -g
 GSL_INCL 	= $(CPPFLAGS)
 GSL_LIBS	= -L/Users/jdonnert/Dev/lib
 endif

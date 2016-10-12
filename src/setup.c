@@ -43,23 +43,24 @@ void Setup()
         Halo[i].Mass200[1] = Halo[i].Mtotal200 / (1+bf);
         Halo[i].Mass200[0] = Halo[i].Mtotal200 - Halo[i].Mass200[1];
 
-		double c_nfw = Halo[i].C_nfw = Concentration_parameter(i);
-
-        /* R200, Kitayama & Suto 99, Boehringer+ 2012 (1), Lokas+ 2000 */
-        Halo[i].R200 = pow(Halo[i].Mtotal200*Unit.Mass
+        /* Kitayama & Suto 99, Boehringer+ 2012 (1), Lokas+ 2000 */
+        Halo[i].R200 = pow(Halo[i].Mtotal200 * Unit.Mass
                 / (delta*rho_crit*fourpithird),1./3.)/Unit.Length;
         
-        Halo[i].Rs = Halo[i].R200 / Halo[i].C_nfw; // NFW scale radius
+		double c_nfw = Halo[i].C_nfw = Concentration_parameter(i);
 
-		Halo[i].Rho0_nfw = 1; // norm of cut-off NFW profile
-		Halo[i].Rho0_nfw = Halo[i].Mass200[1]
-						  / DM_Mass_Profile_NFW(Halo[i].R200,i);
+        Halo[i].Rs = Halo[i].R200 / Halo[i].C_nfw; // NFW scale radius
 
         /* Springel & Farrar 07 */
         Halo[i].A_hernq = Halo[i].Rs*sqrt(2*(log(1+c_nfw)-c_nfw/(1+c_nfw)));
-    }
 
-    Param.Boxsize = floor(2*R200_TO_RMAX_RATIO * Halo[0].R200);
+		Halo[i].Rho0_DM = 1; // norm of DM profile
+		Halo[i].Rho0_DM = Halo[i].Mass200[1]
+						//  / DM_Mass_Profile_NFW(Halo[i].R200,i);
+						  / DM_Mass_Profile_HQ(Halo[i].R200,i);
+    }
+    
+	Param.Boxsize = floor(2*R200_TO_RMAX_RATIO * Halo[0].R200); // fit scalings
 
     for (int i = 0; i < Param.Nhalos; i++) { // Baryons and total mass 
 	
@@ -89,6 +90,7 @@ void Setup()
 
 		Setup_DM_Mass_Profile(i);
 
+		Halo[i].Mass[1] = DBL_MAX;
 		Halo[i].Mass[1] = DM_Mass_Profile(Halo[i].R_Sample[1], i);
 
 		Halo[i].MassCorrFac = DM_Mass_Profile(Infinity, i)
@@ -124,12 +126,12 @@ void Setup()
                "   Sample Radius Gas = %g kpc\n"
                "   Sample Radius DM  = %g kpc\n"
 			   "   qmax              = %g \n"
-               "   Mass in R_Sample  = %g 10^10 MSol\n"
-               "   Mass in DM        = %g 10^10 MSol\n"
-               "   Mass in Gas       = %g 10^10 MSol\n"
-               "   Mass in R200      = %g 10^10 MSol\n"
-               "   rho_nfw           = %g \n"
-               "   rs                = %g \n"
+               "   Mass in R_Sample  = %g 10^10 Msol\n"
+               "   Mass in DM        = %g 10^10 Msol\n"
+               "   Mass in Gas       = %g 10^10 Msol\n"
+               "   Mass in R200      = %g 10^10 Msol\n"
+               "   rho0_DM           = %g [gadget] \n"
+               "   rs                = %g [kpc] \n"
                "   c_nfw             = %g \n"
                "   R200              = %g kpc\n"
                "   a_hernquist       = %g kpc\n"
@@ -141,7 +143,7 @@ void Setup()
 			   "   Rcut              = %g kpc\n",
                i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1],
 			   Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1],
-               Halo[i].Mass[0] ,Halo[i].Mtotal200, Halo[i].Rho0_nfw, Halo[i].Rs,
+               Halo[i].Mass[0] ,Halo[i].Mtotal200, Halo[i].Rho0_DM, Halo[i].Rs,
                Halo[i].C_nfw, Halo[i].R200*Unit.Length/kpc2cgs,
                Halo[i].A_hernq*Unit.Length/kpc2cgs,
                Density(Halo[i].Rho0), Halo[i].Rho0,

@@ -143,7 +143,7 @@ extern struct HaloProperties {
     double Mass[6];                 // Mass in 6 particle types at R_Sample
     double Mass200[6];              // Mass inside R200 
 	double MassCorrFac; 			// Correct DM profile for Rsample != infty
-	double Rho0_nfw;				// Norm of NFW profile
+	double Rho0_DM;				// Norm of NFW profile
     double C_nfw;                   // NFW profile concentration param 
     double Rs;                      // NFW eq. scale radius 
     double R200;                    // Virial Radius 
@@ -196,7 +196,7 @@ extern struct Units{
 
 double G; // gravitational constant in code units
 
-static const double Infinity = 1e20; // global boundaries for profiles
+static const double Infinity = 1e25; // global boundaries for profiles
 static const double Zero = 1;
 
 #endif

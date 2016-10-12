@@ -53,22 +53,29 @@ void Setup_Profiles(const int i)
 
 double DM_Density_Profile(const int i, const float r)
 {
-    const double rs = Halo[i].Rs;
-    const double rho0 = Halo[i].Rho0_nfw; 
+	double ra = r/Halo[i].Rs;
 
-	double rho_nfw = rho0 / (r/rs * p2(1+r/rs));
+	double rho_nfw = Halo[i].Rho0_DM / (ra * p2(1+ra));
 
 	const double rmax = Halo[i].R_Sample[1];
 
-	return rho_nfw / (1+ p2(r/rmax)); // with cutoff
+	//return rho_nfw / (1+ p2(r/rmax)); // with cutoff
+	
+	return Hernquist_Density_Profile(i, r);
 }
 
-double Hernquist_Density_Profile(const double m, const double a, const double r)
+/* Hernquist 1989, eq. 2 , eq. 17-19, Binney & Tremaine 2.64 */
+double Hernquist_Density_Profile(const int i, const double r)
 {
-	return m / (2*pi) * a/(r*p3(r+a)); // Hernquist 1989, eq. 2 , eq. 17-19
+	double ra = r / Halo[i].A_hernq;
+	double a = Halo[i].A_hernq;
+	double Mdm = Halo[i].Mass[1] * Halo[i].MassCorrFac;
+
+	return Halo[i].Rho0_DM / (ra * p3(1 + ra)); 
+	//return Mdm * a/r/p3(a+r)/2/pi;
 }
 
-/* DM cumulative mass profile from an arbitrary DM density profile */
+/* DM cumulative mass profile from an arbitrary DM density profile. */
 
 static gsl_spline *DMMinv_Spline = NULL;
 static gsl_interp_accel *DMMinv_Acc = NULL;
@@ -80,7 +87,9 @@ static gsl_interp_accel *DMM_Acc = NULL;
 
 double DM_Mass_Profile(const double r, const int i)
 {
-	return gsl_spline_eval(DMM_Spline, r, DMM_Acc);
+	double Mr = gsl_spline_eval(DMM_Spline, r, DMM_Acc);
+
+	return Mr;
 }
 
 double Inverted_DM_Mass_Profile(double q, const int i)
@@ -99,8 +108,6 @@ static double dm_mr_integrant(double r, void * param)
 
 void Setup_DM_Mass_Profile(const int iCluster)
 {
-	const double Mdm = Halo[iCluster].Mass[1];
-
 	double m_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 
@@ -132,7 +139,7 @@ void Setup_DM_Mass_Profile(const int iCluster)
 		
 	for (int i = 1; i < NTABLE; i++)
 		if (m_table[i-1] >= m_table[i]) // make strictly increasing
-			m_table[i] = m_table[i-1] * (1 + 1e-8); 
+			m_table[i] = m_table[i-1] * (1 + 1e-4); 
 
 	#pragma omp parallel
 	{
@@ -155,9 +162,16 @@ void Setup_DM_Mass_Profile(const int iCluster)
 double DM_Mass_Profile_NFW(const double r, const int i)
 {
 	double rs = Halo[i].Rs;
-	double rho0 = Halo[i].Rho0_nfw; // (Wiki, Mo+ 2010)
+	double rho0 = Halo[i].Rho0_DM; // (Wiki, Mo+ 2010)
 
 	return 4*pi*rho0*p3(rs) * (log((rs+r)/rs) - r/(rs+r));
+}
+
+double DM_Mass_Profile_HQ(const double r, const int i)
+{
+	double ra = r/Halo[i].A_hernq;
+
+	return Halo[i].Rho0_DM * 4*pi/2 * p3(Halo[i].A_hernq) * p2(ra)/p2(1+ra);
 }
 
 /* We need the precise potential up to very large distances. Because the
@@ -246,13 +260,18 @@ double DM_Potential_Profile(const int i, const float r)
 	return gsl_spline_eval(DMPsi_Spline, r, DMPsi_Acc);
 }
 
-double DM_Potential_Profile_NFW(const int i, const float r)
+double DM_Potential_Profile_NFW(const int i, const double r)
 {
-	double rmax = Halo[i].R_Sample[1];
-	double rs = Halo[i].Rs;
-    double rho0 = Halo[i].Rho0_nfw; 
+	double rrs = r/Halo[i].Rs; // B&T 2.67
 
-	return G * Halo[i].Mass[1]/rs/2 * (1 - p2(r/(r+rs))); // Mo+ 2010, 5.164
+	return -G *  Halo[i].Rho0_DM * 4*pi*p2(Halo[i].Rs) * log(1+rrs)/(rrs); 
+}
+
+double DM_Potential_Profile_HQ(const int i, const double r)
+{
+	double ra = r/Halo[i].A_hernq;
+
+	return -G * Halo[i].Rho0_DM * 4*pi*p2(Halo[i].A_hernq) /2/ (1+ra);
 }
 
 /************ Gas Profiles *************/
@@ -717,13 +736,14 @@ static void show_profiles(const int iCluster)
 				Halo[iCluster].Beta, Halo[iCluster].Rcore, Halo[iCluster].Rcut
 				, Halo[iCluster].Have_Cuspy);
 
-		double rho_HQ = Hernquist_Density_Profile(Halo[iCluster].Mass[1], 
-												  Halo[iCluster].A_hernq, r);
+		double rho_HQ = Hernquist_Density_Profile(iCluster, r);
 		double mr_nfw = DM_Mass_Profile_NFW(r, iCluster);
+		double mr_hq = DM_Mass_Profile_HQ(r, iCluster);
 		double psi_nfw = DM_Potential_Profile_NFW(iCluster, r);
+		double psi_hq = DM_Potential_Profile_HQ(iCluster, r);
 
-		fprintf(fp,"%g %g %g %g %g %g %g",
-				r, rho_dm, mr_dm, psi_dm, rho_HQ, mr_nfw, psi_nfw);
+		fprintf(fp,"%g %g %g %g %g %g %g %g %g",
+			r, rho_dm, mr_dm, psi_dm, rho_HQ,  mr_nfw, mr_hq, psi_nfw, psi_hq);
 
 		if (Halo[iCluster].Mass200[0] > 0) {
 			

@@ -9,8 +9,11 @@ double DM_Density_Profile(const int, const float);
 double DM_Potential_Profile(const int, const float);
 double DM_Mass_Profile(const double, const int); 
 double DM_Mass_Profile_NFW(const double, const int); 
+double DM_Mass_Profile_HQ(const double r, const int i);
 double Inverted_DM_Mass_Profile(const double, const int); 
-double Hernquist_Density_Profile(const double, const double, const double);
+double Hernquist_Density_Profile(const int, const double);
+double DM_Potential_Profile_HQ(const int i, const double r);
+double DM_Potential_Profile_NFW(const int i, const double r);
 
 double Gas_Density_Profile(const double, const double, const double,
 		const double, const double, const bool); 

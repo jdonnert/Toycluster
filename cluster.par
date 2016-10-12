@@ -3,7 +3,7 @@
 Output_file IC_single_0   % Base name
 
 Ntotal      2000000  % Total Number of Particles in R200
-Mtotal      1e5   % Total Mass in Code Units
+Mtotal      1e4   % Total Mass in Code Units
 
 Mass_Ratio  0 %.3125       % set =0 for single cluster
 

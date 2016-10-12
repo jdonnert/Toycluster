@@ -477,7 +477,7 @@ static void setup_gas_potential_profile(const int i)
 	double psi_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 
-	double rmin = Zero;
+	double rmin = 5; // mostly shot noise here anyway
 	double rmax = Infinity;
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 
@@ -490,7 +490,7 @@ static void setup_gas_potential_profile(const int i)
 	gsl_integration_workspace *gsl_workspace = NULL;
 	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
 
-	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-6, NTABLE, 
+	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-4, NTABLE, 
 			GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
 	
 	for (int j = 1; j < NTABLE; j++) {

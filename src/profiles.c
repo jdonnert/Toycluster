@@ -446,6 +446,9 @@ static gsl_interp_accel *Psi_Acc = NULL;
 
 double Gas_Potential_Profile(const int i, const double r)
 {
+	if (r > 2*Halo[i].Rcut)
+		return 0;
+
 	double r_max = 10 * Halo[i].R_Sample[0];
 
 	if (r < r_max)
@@ -592,7 +595,7 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 	double rcut = Halo[i].Rcut;
 	int is_cuspy = Halo[i].Have_Cuspy;
 	double a = Halo[i].A_hernq;
-	double Mdm = Halo[i].Mass[1]; // bias this for stability
+	double Mdm = 1.1 * Halo[i].Mass[1]; // bias this for stability
 
 #ifdef NO_RCUT_IN_T
 	rcut = Infinity;
@@ -704,6 +707,7 @@ double Internal_Energy_Profile_Analytic(const int i, const double d)
 }
 
 static int iLast = -1;
+
 static void show_profiles(const int iCluster)
 {
 	if (iCluster < iLast)
@@ -742,7 +746,7 @@ static void show_profiles(const int iCluster)
 		double psi_nfw = DM_Potential_Profile_NFW(iCluster, r);
 		double psi_hq = DM_Potential_Profile_HQ(iCluster, r);
 
-		fprintf(fp,"%g %g %g %g %g %g %g %g %g",
+		fprintf(fp,"%g %g %g %g %g %g %g %g %g ",
 			r, rho_dm, mr_dm, psi_dm, rho_HQ,  mr_nfw, mr_hq, psi_nfw, psi_hq);
 
 		if (Halo[iCluster].Mass200[0] > 0) {

@@ -243,7 +243,7 @@ static void calc_distribution_function_table(int iCluster)
 
 		gsl_function F = {&eddington_integrant, &int_params};
 		
-		gsl_integration_qags(&F, 0, E[i], 0, 1e-5, NSAMPLE, w, &fE[i], &err); 
+		gsl_integration_qags(&F, 0, E[i], 0, 1e-3, NSAMPLE, w, &fE[i], &err); 
 		
 		fE[i] /= sqrt8 * pi * pi;
 		

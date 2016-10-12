@@ -31,19 +31,25 @@ static struct int_param {
 
 void Setup_Profiles(const int i)
 {
+	printf("A");
 	Setup_DM_Mass_Profile(i);
 
+	printf("B");
 	setup_dm_potential_profile(i);
 
 	if ((Cosmo.Baryon_Fraction > 0) && (!Halo[i].Is_Stripped)) {
 
+	printf("C");
 		Setup_Gas_Mass_Profile(i);
 
+	printf("D");
 		setup_gas_potential_profile(i);
 
+	printf("E");
 		setup_internal_energy_profile(i);
 	}
 
+	printf("F");
 	show_profiles(i);
 
 	return ;
@@ -57,11 +63,11 @@ double DM_Density_Profile(const int i, const float r)
 
 	double rho_nfw = Halo[i].Rho0_DM / (ra * p2(1+ra));
 
-	const double rmax = Halo[i].R_Sample[1];
+	const double rmax = 2*Halo[i].R_Sample[1];
 
-	//return rho_nfw / (1+ p2(r/rmax)); // with cutoff
+	return rho_nfw / (1+ p3(r/rmax)); // with cutoff
 	
-	return Hernquist_Density_Profile(i, r);
+	//return Hernquist_Density_Profile(i, r);
 }
 
 /* Hernquist 1989, eq. 2 , eq. 17-19, Binney & Tremaine 2.64 */
@@ -278,12 +284,16 @@ double DM_Potential_Profile_HQ(const int i, const double r)
 
 /* Double beta profile at rc and rcut */
 
-double Gas_Density_Profile(const double r, const double rho0, 
-						   const double beta, const double rc, 
-						   const double rcut, const bool Is_Cuspy)
+double Gas_Density_Profile(const double r, const int i)
 {
+	double rho0 = Halo[i].Rho0;
+	double beta = Halo[i].Beta;
+	double rc = Halo[i].Rcore;
+	double rcut = Halo[i].Rcut;
+	double Is_Cupsy = Halo[i].Have_Cuspy;
+
 	double rho = rho0 * pow(1 + p2(r/rc), -3.0/2.0*beta) 
-				/ (1 + p3(r/rcut) * (r/rcut));
+				/ (1 + p3(r/rcut));
 
 #ifdef DOUBLE_BETA_COOL_CORES
 
@@ -324,20 +334,13 @@ double Inverted_Gas_Mass_Profile(double M)
 
 double m_integrant(double r, void * param)
 {
-	struct int_param *ip = ((struct int_param *) param); 
+	int i = *((int *) param); 
 
-	return 4*pi*r*r*Gas_Density_Profile(r, ip->rho0, ip->beta, ip->rc, 
-										   ip->rcut, ip->cuspy);
+	return 4*pi*r*r*Gas_Density_Profile(r, i);
 }
 
 void Setup_Gas_Mass_Profile(const int j)
 {
-	const double rho0 = Halo[j].Rho0;
-	const double rc = Halo[j].Rcore; 
-	const double beta = Halo[j].Beta;
-	const double rcut = Halo[j].Rcut;
-	const double cuspy = Halo[j].Have_Cuspy;
-
 	double m_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 	double dr_table[NTABLE] = { 0 };
@@ -359,10 +362,8 @@ void Setup_Gas_Mass_Profile(const int j)
 
 		r_table[i] = rmin * pow(10, log_dr * i);
 
-		struct int_param ip = { rho0, beta, rc, rcut, cuspy };
-
 		gsl_F.function = &m_integrant;
-		gsl_F.params = (void *) &ip;
+		gsl_F.params = (void *) &j;
 
 		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-7, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
@@ -472,7 +473,6 @@ double psi_integrant(double r, void *param)
 static void setup_gas_potential_profile(const int i)
 {
 	double error = 0;
-
 
 	double psi_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
@@ -587,23 +587,15 @@ double Internal_Energy_Profile(const int i, const double r)
 
 static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 {
-	int i = *((int *) param);
-
-	double rho0 = Halo[i].Rho0;
-	double rc = Halo[i].Rcore;
-	double beta = Halo[i].Beta;
-	double rcut = Halo[i].Rcut;
-	int is_cuspy = Halo[i].Have_Cuspy;
-	double a = Halo[i].A_hernq;
-	double Mdm = 1.1 * Halo[i].Mass[1]; // bias this for stability
+	const int i = *((int *) param);
 
 #ifdef NO_RCUT_IN_T
 	rcut = Infinity;
 #endif
 
-	double rho_gas = Gas_Density_Profile(r, rho0, beta, rc, rcut, is_cuspy);
+	double rho_gas = Gas_Density_Profile(r, i);
 	double Mr_Gas = Gas_Mass_Profile(r, i);
-	double Mr_DM = DM_Mass_Profile(r,i);
+	double Mr_DM = 1.1*DM_Mass_Profile(r,i); // bias DM halo for stability
 
 	return rho_gas /(r*r) * (Mr_Gas + Mr_DM);
 }
@@ -637,7 +629,7 @@ static void setup_internal_energy_profile(const int i)
 		gsl_F.function = &u_integrant;
 		gsl_F.params = (void *) &i;
 
-		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-5, NTABLE, 
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-7, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &u_table[j], &error);
 
 		double rho0 = Halo[i].Rho0;
@@ -649,7 +641,7 @@ static void setup_internal_energy_profile(const int i)
 #ifdef NO_RCUT_IN_T
 		rcut = Infinity;
 #endif
-		double rho_gas = Gas_Density_Profile(r,rho0, beta, rc, rcut, is_cuspy);
+		double rho_gas = Gas_Density_Profile(r, i);
 
 		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
 		
@@ -736,11 +728,8 @@ static void show_profiles(const int iCluster)
 		double mr_dm = DM_Mass_Profile(r, iCluster);
 		double psi_dm  = DM_Potential_Profile(iCluster,r);
 
-		double rho_gas = Gas_Density_Profile(r, Halo[iCluster].Rho0,
-				Halo[iCluster].Beta, Halo[iCluster].Rcore, Halo[iCluster].Rcut
-				, Halo[iCluster].Have_Cuspy);
-
 		double rho_HQ = Hernquist_Density_Profile(iCluster, r);
+
 		double mr_nfw = DM_Mass_Profile_NFW(r, iCluster);
 		double mr_hq = DM_Mass_Profile_HQ(r, iCluster);
 		double psi_nfw = DM_Potential_Profile_NFW(iCluster, r);
@@ -751,6 +740,7 @@ static void show_profiles(const int iCluster)
 
 		if (Halo[iCluster].Mass200[0] > 0) {
 			
+			double rho_gas = Gas_Density_Profile(r, iCluster);
 			double mr_gas = Gas_Mass_Profile(r, iCluster);
 			double psi_gas = Gas_Potential_Profile(iCluster, r);
 			double u_gas = Internal_Energy_Profile(iCluster, r);

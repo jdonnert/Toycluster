@@ -56,8 +56,8 @@ void Setup()
 
 		Halo[i].Rho0_DM = 1; // norm of DM profile
 		Halo[i].Rho0_DM = Halo[i].Mass200[1]
-						//  / DM_Mass_Profile_NFW(Halo[i].R200,i);
-						  / DM_Mass_Profile_HQ(Halo[i].R200,i);
+						  / DM_Mass_Profile_NFW(Halo[i].R200,i);
+						 // / DM_Mass_Profile_HQ(Halo[i].R200,i);
     }
     
 	Param.Boxsize = floor(2*R200_TO_RMAX_RATIO * Halo[0].R200); // fit scalings
@@ -66,12 +66,12 @@ void Setup()
 	
     	Halo[i].R_Sample[0] = Halo[i].R200 * R200_RSAMPLE_RATIO;
 		Halo[i].R_Sample[1] = Halo[i].R200 * R200_RSAMPLE_RATIO;
-		Halo[i].Rcut = 1.5 *  Halo[i].R200; 
+		Halo[i].Rcut = 1.2 * Halo[i].R200; 
 
 		if (i == 0) { // 0 provides a background
 
 			Halo[i].R_Sample[1] = Param.Boxsize/2;
-			Halo[i].R_Sample[0] = Param.Boxsize/2;
+			Halo[i].R_Sample[0] = Param.Boxsize/2 ;//* sqrt(3);
 		}
 
 		double rs_gas = Halo[i].R_Sample[0];

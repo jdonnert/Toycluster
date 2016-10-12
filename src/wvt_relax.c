@@ -49,10 +49,10 @@ void Regularise_sph_particles()
 #ifdef SPH_CUBIC_SPLINE
 	double step = 0.035;
 #else
-	double step = 0.007;
+	double step = 0.006;
 
 	if (Param.Mtotal < 1e5)
-		step = 0.00425;
+		step /= 2;
 
 #endif
 
@@ -99,7 +99,7 @@ void Regularise_sph_particles()
 			break;
 
 		if (errDiff < 0.01 && (it > 1)) // force convergence
-			step *= 0.8;
+			step *= 0.9;
 
 		errLast = errMean;
 		errDiffLast = errDiff;
@@ -213,9 +213,6 @@ void Regularise_sph_particles()
             while (P[ipart].Pos[2] > boxsize)
                 P[ipart].Pos[2] -= boxsize;
         }
-		
-//		printf("          Delta: %d > 1, %d > 0.1 %d > 0.01; step %g \n", 
-//				cnt, cnt1, cnt2, step);
     }
 
     Free(hsml); Free(delta[0]); Free(delta[1]); Free(delta[2]);
@@ -228,8 +225,9 @@ void Regularise_sph_particles()
 static float global_density_model(const int ipart)
 {
     const double boxhalf = Param.Boxsize*0.5;
-	const double x = P[ipart].Pos[0], y = P[ipart].Pos[1], 
-		  z = P[ipart].Pos[2];
+	const double x = P[ipart].Pos[0], 
+		  		 y = P[ipart].Pos[1], 
+		  		 z = P[ipart].Pos[2];
 
     double rho = 0;  
 
@@ -244,11 +242,7 @@ static float global_density_model(const int ipart)
 
         double r2 = dx*dx + dy*dy + dz*dz;
 
-	//if (r2 > p2(Halo[i].R_Sample[0]) && (i > 0)) // subhalos END at Rsample
-	//		continue;
-
-		double rho_i = Gas_Density_Profile(sqrt(r2), Halo[i].Rho0, 
-				Halo[i].Beta, Halo[i].Rcore, Halo[i].Rcut, Halo[i].Have_Cuspy);
+		double rho_i = Gas_Density_Profile(sqrt(r2), i);
 
 		rho = fmax(rho_i, rho);
     }

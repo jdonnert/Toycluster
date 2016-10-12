@@ -368,8 +368,7 @@ int Halo_containing(const int type, const float x, const float y, const float z)
    	   		float r = sqrt(p2(x - Halo[j].D_CoM[0]) + p2(y - Halo[j].D_CoM[1])  
 				 + p2(z - Halo[j].D_CoM[2]));
 
-			double rho_gas = Gas_Density_Profile(r, Halo[j].Rho0, Halo[j].Beta,
-							Halo[j].Rcore, Halo[j].Rcut,Halo[j].Have_Cuspy);
+			double rho_gas = Gas_Density_Profile(r, j);
 
        		if ( (rho_gas > rho_max) && (r < Halo[j].R_Sample[0]) ) {
 			

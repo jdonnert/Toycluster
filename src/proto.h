@@ -15,8 +15,7 @@ double Hernquist_Density_Profile(const int, const double);
 double DM_Potential_Profile_HQ(const int i, const double r);
 double DM_Potential_Profile_NFW(const int i, const double r);
 
-double Gas_Density_Profile(const double, const double, const double,
-		const double, const double, const bool); 
+double Gas_Density_Profile(const double, const int); 
 double Gas_Mass_Profile(const double, const int); 
 double Inverted_Gas_Mass_Profile(double); 
 double Gas_Potential_Profile(const int i, const double r);

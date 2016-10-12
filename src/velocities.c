@@ -224,7 +224,7 @@ static void calc_distribution_function_table(int iCluster)
 
 	interpolation_parameters int_params; 
 	int_params.acc = gsl_interp_accel_alloc();
-	int_params.spline = gsl_spline_alloc(gsl_interp_akima, NSAMPLE);
+	int_params.spline = gsl_spline_alloc(gsl_interp_cspline, NSAMPLE);
 
 	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
 

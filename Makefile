@@ -3,7 +3,7 @@ SHELL = /bin/bash
 ## OPTIONS  ##
 OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
 
-OPT += -DBETA=0.66666
+OPT += -DBETA=0.54
 
 #OPT     += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)

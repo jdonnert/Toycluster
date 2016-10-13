@@ -452,7 +452,7 @@ double Gas_Potential_Profile(const int i, const double r)
 
 	double psi_max = gsl_spline_eval(Psi_Spline,r_max, Psi_Acc);
 
-	return psi_max*r_max/r; // point mass
+	return psi_max*r_max/r; // extrapolate, point mass
 }
 
 double psi_integrant(double r, void *param)
@@ -472,7 +472,7 @@ static void setup_gas_potential_profile(const int i)
 	double psi_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 
-	double rmin = 5; // mostly shot noise here anyway
+	double rmin = 10; // mostly shot noise below anyway
 	double rmax = 2*Halo[i].R_Sample[0]; // extrapolate for r > rmax
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 
@@ -495,12 +495,11 @@ static void setup_gas_potential_profile(const int i)
 	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-2, 8*NTABLE, 
   		GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
 
-	for (int j = 0; j < NTABLE; j++) {// psi = -phi > 0
+	for (int j = 0; j < NTABLE; j++) // psi = -phi > 0
 		psi_table[j] = -1*(psi_table[j] - gauge); 
-		printf("%d %g %g %g\n", j, r_table[j], psi_table[j], gauge );
-	}
 
 	r_table[0] = 0;
+	psi_table[0] = gauge; // make sure its correct
 
 	#pragma omp parallel
 	{

@@ -35,10 +35,8 @@ void Setup_Substructure()
 	if (Param.Mass_Ratio != 0)
 		Sub.First = 2;
 
-printf("a\n");
 	Sub.MassFraction = subhalo_mass_fraction(); 
-
-printf("b\n");
+	
 	set_subhalo_masses(Sub.MassFraction);
 	
 	for (int i = Sub.First; i < Param.Nhalos; i++) { 
@@ -47,12 +45,9 @@ printf("b\n");
 
 		do {
 			
-printf("c\n");
 			set_subhalo_positions(i); 
 			
-printf("d\n");
 			set_subhalo_properties(i);
-printf("e\n");
 		
 		} while (reject_subhalo(i));
 

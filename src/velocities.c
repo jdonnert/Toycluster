@@ -275,6 +275,8 @@ static void calc_distribution_function_table(int iCluster)
 		x[i] = log10(E[NTABLE-i-1]);
 		
 		y[i] = log10(fE[NTABLE-i-1]);
+
+		printf("%d %g %g \n", i, x[i], y[i]);
 	}
 
 	#pragma omp parallel

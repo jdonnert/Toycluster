@@ -66,7 +66,7 @@ void Setup()
 	
     	Halo[i].R_Sample[0] = Halo[i].R200 * R200_RSAMPLE_RATIO;
 		Halo[i].R_Sample[1] = Halo[i].R200 * R200_RSAMPLE_RATIO;
-		Halo[i].Rcut = 1.2 * Halo[i].R200; 
+		Halo[i].Rcut = RCUT_R200_RATIO * Halo[i].R200; 
 
 		if (i == 0) { // 0 provides a background
 
@@ -125,7 +125,6 @@ void Setup()
                "   Model             = %s\n"
                "   Sample Radius Gas = %g kpc\n"
                "   Sample Radius DM  = %g kpc\n"
-			   "   qmax              = %g \n"
                "   Mass in R_Sample  = %g 10^10 Msol\n"
                "   Mass in DM        = %g 10^10 Msol\n"
                "   Mass in Gas       = %g 10^10 Msol\n"
@@ -142,8 +141,8 @@ void Setup()
                "   rc                = %g kpc\n"
 			   "   Rcut              = %g kpc\n",
                i,string,Halo[i].R_Sample[0], Halo[i].R_Sample[1],
-			   Halo[i].MassCorrFac, Halo[i].Mtotal, Halo[i].Mass[1],
-               Halo[i].Mass[0] ,Halo[i].Mtotal200, Halo[i].Rho0_DM, Halo[i].Rs,
+			   Halo[i].Mtotal, Halo[i].Mass[1], Halo[i].Mass[0], 
+			   Halo[i].Mtotal200, Halo[i].Rho0_DM, Halo[i].Rs,
                Halo[i].C_nfw, Halo[i].R200*Unit.Length/kpc2cgs,
                Halo[i].A_hernq*Unit.Length/kpc2cgs,
                Density(Halo[i].Rho0), Halo[i].Rho0,

@@ -31,7 +31,7 @@ static struct int_param {
 
 void Setup_Profiles(const int i)
 {
-	printf("A");
+	printf("\n %d A", i); 
 	Setup_DM_Mass_Profile(i);
 
 	printf("B");
@@ -49,7 +49,7 @@ void Setup_Profiles(const int i)
 		setup_internal_energy_profile(i);
 	}
 
-	printf("F");
+	printf("F\n");fflush(stdout);
 	show_profiles(i);
 
 	return ;
@@ -63,7 +63,7 @@ double DM_Density_Profile(const int i, const float r)
 
 	double rho_nfw = Halo[i].Rho0_DM / (ra * p2(1+ra));
 
-	const double rmax = 2*Halo[i].R_Sample[1];
+	const double rmax = Halo[i].R_Sample[1];
 
 	return rho_nfw / (1+ p3(r/rmax)); // with cutoff
 	
@@ -131,16 +131,14 @@ void Setup_DM_Mass_Profile(const int iCluster)
 		double error = 0;
 
 		r_table[i] = rmin * pow(10, log_dr * i);
-
-		int ip = iCluster;
 	
 		gsl_F.function = &dm_mr_integrant;
-		gsl_F.params = (void *) &ip;
+		gsl_F.params = (void *) &iCluster;
 
 		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-6, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
 	}
-
+	
 	r_table[0] = m_table[0] = 0;
 		
 	for (int i = 1; i < NTABLE; i++)
@@ -438,7 +436,7 @@ double Mass_Profile_23(const double r, const int i)
 }
 
 /* The grav. potential from the gas density. We solve Poisson's equation 
- * numerically. Here psi is the -phi, always >= 0, 
+ * numerically. Here psi is the -phi >= 0, 
  * The potential is extrapolated away from the sampling radius for accuracy */
 
 static gsl_spline *Psi_Spline = NULL;
@@ -447,17 +445,14 @@ static gsl_interp_accel *Psi_Acc = NULL;
 
 double Gas_Potential_Profile(const int i, const double r)
 {
-	if (r > 2*Halo[i].Rcut)
-		return 0;
-
-	double r_max = 10 * Halo[i].R_Sample[0];
+	double r_max = Halo[i].R_Sample[0];
 
 	if (r < r_max)
 		return gsl_spline_eval(Psi_Spline, r, Psi_Acc);
 
 	double psi_max = gsl_spline_eval(Psi_Spline,r_max, Psi_Acc);
 
-	return psi_max*r_max/r;
+	return psi_max*r_max/r; // point mass
 }
 
 double psi_integrant(double r, void *param)
@@ -478,33 +473,34 @@ static void setup_gas_potential_profile(const int i)
 	double r_table[NTABLE] = { 0 };
 
 	double rmin = 5; // mostly shot noise here anyway
-	double rmax = Infinity;
+	double rmax = 2*Halo[i].R_Sample[0]; // extrapolate for r > rmax
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 
-	double gauge = 0;
-	
 	gsl_function gsl_F = { 0 };
 	gsl_F.function = &psi_integrant;
 	gsl_F.params = (void *) &i;
 
 	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(NTABLE);
+	gsl_workspace = gsl_integration_workspace_alloc(8*NTABLE);
 
-	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-4, NTABLE, 
-			GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
-	
-	for (int j = 1; j < NTABLE; j++) {
+	for (int j = 0; j < NTABLE; j++) {
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-3, NTABLE, 
-				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
-
-		psi_table[j] = -1*(psi_table[j] - gauge); // psi = -phi > 0
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-2, 8*NTABLE,
+  			GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 	}
 	
+	double gauge = 0;
+	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-2, 8*NTABLE, 
+  		GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
+
+	for (int j = 0; j < NTABLE; j++) {// psi = -phi > 0
+		psi_table[j] = -1*(psi_table[j] - gauge); 
+		printf("%d %g %g %g\n", j, r_table[j], psi_table[j], gauge );
+	}
+
 	r_table[0] = 0;
-	psi_table[0] = gauge;
 
 	#pragma omp parallel
 	{

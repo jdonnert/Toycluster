@@ -99,7 +99,7 @@ void Regularise_sph_particles()
 			break;
 
 		if (errDiff < 0.01 && (it > 1)) // force convergence
-			step *= 0.9;
+			step *= 0.8;
 
 		errLast = errMean;
 		errDiffLast = errDiff;

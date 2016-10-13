@@ -87,6 +87,7 @@ printf("e\n");
 				"   DM  Mass      = %g \n"
 				"   Gas Mass      = %g \n"
 				"   c_nfw         = %g \n"
+				"   rho0_DM         = %g \n"
 				"   r_sample      = %g \n"
 				"   R200          = %g \n"
 				"   r_s           = %g \n"
@@ -102,7 +103,8 @@ printf("e\n");
 				Halo[i].Mass[0] / Halo[i].Mtotal,
 				Halo[i].Mtotal200/Halo[0].Mtotal,
 				Halo[i].Mass[1], Halo[i].Mass[0], Halo[i].C_nfw, 
-				Halo[i].R_Sample[0], Halo[i].R200, Halo[i].R200 / Halo[i].C_nfw,
+				Halo[i].Rho0_DM, Halo[i].R_Sample[0], Halo[i].R200, 
+				Halo[i].R200 / Halo[i].C_nfw,
 				Halo[i].A_hernq, Halo[i].Rcore, Halo[i].Rho0,
 				Halo[i].MassCorrFac,
 				Halo[i].D_CoM[0],Halo[i].D_CoM[1],Halo[i].D_CoM[2],
@@ -285,7 +287,6 @@ static void set_subhalo_properties(const int i)
 	double r200 = Halo[SUBHOST].R200;
 	double c_nfw = 0;
 	double rsample = 0;
-	double rho0_nfw = 0;
 
 	int cnt = 0;
 	
@@ -295,16 +296,16 @@ static void set_subhalo_properties(const int i)
 		
 		rsample = fmax(sampling_radius(i, r_i), tidal_radius(i,r_i) );
 
-		rsample = fmin(rsample, r200*0.5);
+		rsample = fmin(rsample, r200/4);
 
 		Halo[i].C_nfw = c_nfw = Concentration_parameter(i);
 
 		Halo[i].Rs = nfw_scale_radius(c_nfw, Halo[i].Mass[1], rsample);
 		
-		Halo[i].Rho0_nfw = 1;
-		Halo[i].Rho0_nfw = rho0_nfw = Halo[i].Mass200[1]
-						  		  / DM_Mass_Profile_NFW(Halo[i].R200,i);
-
+		Halo[i].Rho0_DM = 1;
+		Halo[i].Rho0_DM = Halo[i].Mass[1]
+						  		  / DM_Mass_Profile_NFW(rsample,i);
+		
 		a = Halo[i].Rs*sqrt(2*(log(1+c_nfw) - c_nfw/(1+c_nfw)));
 
 		r200 = Halo[i].Rs * c_nfw;
@@ -358,13 +359,11 @@ static void set_subhalo_properties(const int i)
 	
 	Halo[i].Is_Stripped  = true;
 	
-	Setup_Profiles(i);
-	
 	if (r_i > r_strip) {
 	
 		Halo[i].Is_Stripped  = false;
 		
-		Halo[i].Mass[0] = Gas_Mass_Profile(Halo[i].R_Sample[0],i);
+		Halo[i].Mass[0] = Mass_Profile_23(Halo[i].R_Sample[0],i);
 	}
 
 #ifdef ADD_THIRD_SUBHALO

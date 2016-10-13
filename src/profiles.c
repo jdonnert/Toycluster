@@ -2,12 +2,15 @@
 #include <gsl/gsl_spline.h>
 #include "globals.h"
 
-#define NTABLE 1024
+#define NTABLE 512
+#define NSAMPLE (2*NTABLE)
 #define GSL_SPLINE gsl_interp_cspline
 
 static void setup_internal_energy_profile(const int i);
 static void setup_gas_potential_profile(const int i);
 static void	setup_dm_potential_profile(const int i);
+static void setup_dm_distribution_function(const int iCluster);
+static double hernquist_distribution_func(const int iCluster, const double E);
 
 static void show_profiles(const int iCluster);
 
@@ -31,25 +34,21 @@ static struct int_param {
 
 void Setup_Profiles(const int i)
 {
-	printf("\n %d A", i); 
 	Setup_DM_Mass_Profile(i);
 
-	printf("B");
 	setup_dm_potential_profile(i);
 
 	if ((Cosmo.Baryon_Fraction > 0) && (!Halo[i].Is_Stripped)) {
 
-	printf("C");
 		Setup_Gas_Mass_Profile(i);
 
-	printf("D");
 		setup_gas_potential_profile(i);
 
-	printf("E");
 		setup_internal_energy_profile(i);
 	}
+	
+	setup_dm_distribution_function(i);
 
-	printf("F\n");fflush(stdout);
 	show_profiles(i);
 
 	return ;
@@ -218,7 +217,7 @@ static void	setup_dm_potential_profile(const int iCluster)
 		gsl_F.function = &dm_psi_integrant;
 		gsl_F.params = (void *) &ip;
 
-		gsl_integration_qag(&gsl_F, Zero, r_table[i], 0, 1e-7, NTABLE, 
+		gsl_integration_qag(&gsl_F, Zero, r_table[i], 0, 1e-5, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[i], &error);
 	}
 	psi_table[0] = psi_table[1];
@@ -693,6 +692,194 @@ double Internal_Energy_Profile_Analytic(const int i, const double d)
 	return u;
 }
 
+/* Find f(E) for arbitrary spherically symmetric density-potential pairs by 
+ * numerical integration of the Eddington equation.
+ * We interpolate rho(psi) with an cubic spline using the GSL library and
+ * get the second derivative from the spline directly. This is a hard 1D 
+ * integral to get to floating point precision ! We disable the GSL error
+ * handler, because target accuracy can't always be reached. The Hernquist
+ * f(E) is reproduce with a few 1e-3 accuracy ...
+ * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 */  
+
+typedef struct {
+	double E;
+	gsl_spline *spline;
+	gsl_interp_accel *acc;
+} interpolation_parameters;
+
+static interpolation_parameters fE_params;
+#pragma omp threadprivate(fE_params)
+
+double Distribution_Function(const double E)
+{
+	double log_E = log10(E);
+
+	double log10_fE =  gsl_spline_eval(fE_params.spline, log_E, fE_params.acc);
+
+	return pow(10, log10_fE);
+}
+
+/* This is the absolute potential psi = -phi.  */
+double Potential_Profile(const int i, const double r)
+{
+	double psi = fabs(DM_Potential_Profile(i, r)); // DM generated potential
+	
+	if (Halo[i].Npart[0]) // Gas generated potential
+		psi += fabs(Gas_Potential_Profile(i,r));
+
+	return psi; 
+}
+
+/* Binney & Tremaine sect. 4.3.1, we take the second derivate from the
+ * cubic spline */
+
+static double eddington_integrant(double psi, void *params)
+{
+	const interpolation_parameters *p = params;
+
+	if (psi >= p->E)
+		return 0;
+
+	const double dRhodPsi2 = gsl_spline_eval_deriv2(p->spline, psi, p->acc);
+
+	double result = dRhodPsi2 / sqrt(p->E - psi);
+
+	return result;
+}
+
+static void setup_dm_distribution_function(const int iCluster)
+{
+	double rmin = Zero; // 0 wont work 
+	double rmax = Infinity; // large val for accuracy
+
+	double rstep = log10(rmax/rmin) / NSAMPLE; // good up to one Gpc
+
+	double psi[NSAMPLE] = { 0 }, 
+		   rho[NSAMPLE] = { 0 };
+
+	#pragma omp parallel for  
+	for (int i = 0; i < NSAMPLE; i++) {
+		
+		double r = rmin * pow(10, i*rstep);
+
+		rho[i] = DM_Density_Profile(iCluster, r);
+
+		psi[i] = Potential_Profile(iCluster, r); // psi = - phi
+
+		//printf("%d %g %g %g \n", i, r, rho[i], psi[i]);
+	}
+
+	psi[NSAMPLE-1] = rho[NSAMPLE-1] = 0; // make sure  E==0 is covered
+
+	double E[NTABLE] = { 0 }, 
+		   fE[NTABLE] = { 0 };
+
+	double x[NSAMPLE] = { 0 }, // holds inverted vals
+		   y[NSAMPLE] = { 0 }; 
+
+	for (int i = 0; i < NSAMPLE; i++) { // invert profile for interpolation
+	
+		x[i] = psi[NSAMPLE-i-1];
+		y[i] = rho[NSAMPLE-i-1];
+		
+		//printf("%d %g %g \n", i, x[i], y[i]);
+	}
+
+	#pragma omp parallel // make f(E) table
+	{
+
+	gsl_integration_workspace *w = gsl_integration_workspace_alloc(NSAMPLE);
+
+	interpolation_parameters int_params; 
+	int_params.acc = gsl_interp_accel_alloc();
+	int_params.spline = gsl_spline_alloc(gsl_interp_cspline, NSAMPLE);
+
+	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
+
+	rstep = log10(rmax/rmin) / NTABLE; // only consider 10 Mpc radius
+	
+	const double sqrt8 = sqrt(8.0);
+
+	double err = 0;
+
+	#pragma omp for
+	for (int i = 0; i < NTABLE; i++) {
+
+		double r = rmin * pow(10, i*rstep);
+
+		int_params.E = E[i] = Potential_Profile(iCluster, r);
+
+		gsl_function F = {&eddington_integrant, &int_params};
+		
+		gsl_integration_qags(&F, 0, E[i], 0, 1e-3, NSAMPLE, w, &fE[i], &err); 
+		
+		fE[i] /= sqrt8 * pi * pi;
+		
+		//printf("%d %g %g %g %g %g %g \n", i, r, E[i], fE[i],
+		//		hernquist_distribution_func(iCluster, E[i]), err/fE[i], 
+		//		eddington_integrant(0.5*E[i], &int_params));
+	}
+
+	E[NTABLE-1] = 0; // r == inf, f(E) -> 0
+	fE[NTABLE-1] = 0;
+
+	gsl_integration_workspace_free(w);
+
+	gsl_interp_accel_free(int_params.acc);
+	gsl_spline_free(int_params.spline);
+
+	} // omp parallel 
+
+	#pragma omp parallel
+	{
+	fE_params.acc = gsl_interp_accel_alloc();
+	fE_params.spline = gsl_spline_alloc(gsl_interp_akima, NTABLE);
+	}
+	
+	int nSpline = 0;
+
+	for (int i = 0; i < NTABLE; i++) { // interpolate fE in log space
+
+		x[i] = log10(E[NTABLE-i-1]);
+		
+		y[i] = log10(fE[NTABLE-i-1]);
+
+	//	printf("%d %g %g \n", i, x[i], y[i]);
+	}
+
+	#pragma omp parallel
+	gsl_spline_init(fE_params.spline, x, y, NTABLE);
+
+	/*for (int i = 0; i < NTABLE; i++) {
+		
+		double r = rmin * pow(10, i*rstep);
+
+		double E = Potential_Profile(iCluster, r);
+
+		printf("%d %g %g ", i, r, E);
+
+		double solution =  hernquist_distribution_func(iCluster, E);
+		double fe = distribution_function(E);
+
+		printf("%g %g %g \n", solution, fe, fabs(fe-solution)/solution);
+	} */
+
+	return ;
+}
+
+static double hernquist_distribution_func(const int iCluster, const double E) 
+{
+	const double a = Halo[iCluster].A_hernq;
+    const double mass = Halo[iCluster].Mass[1]; 
+	const double prefac = 1/(sqrt2 * p3(2*pi) * pow(G*mass*a, 3./2.));
+
+    double q2 = a*E/(G*mass);
+
+    double f_E = prefac * mass * sqrt(q2) / pow(1-q2,2)
+                *( (1 - 2*q2) * (8*q2*q2 - 8*q2 - 3)
+                 + (3*asin(sqrt(q2)))/sqrt(q2*(1-q2) ));
+	return f_E;
+}
 static int iLast = -1;
 
 static void show_profiles(const int iCluster)
@@ -707,7 +894,12 @@ static void show_profiles(const int iCluster)
 	sprintf(fname, "profiles_%03d.txt", iCluster);
 
 	FILE *fp = fopen(fname, "w");
-
+	
+	fprintf(fp, "#r, rho_dm, mr_dm, psi_dm, rho_HQ,  mr_nfw, mr_hq, psi_nfw, psi_hq ");
+	if (Halo[iCluster].Mass200[0] > 0)
+		fprintf(fp, "rho_gas, mr_gas, psi_gas, u_gas, mr_23, psi_23, u_ana ");
+	fprintf(fp, "E, fE, fE_hq ");
+	
 	const double rmin = Zero;
 	const double rmax = Infinity;
 
@@ -744,12 +936,20 @@ static void show_profiles(const int iCluster)
 			double psi_23 = Gas_Potential_Profile_23(iCluster, r);
 			double u_ana = Internal_Energy_Profile_Analytic(iCluster, r);
 
-			fprintf(fp,"%g %g %g %g %g %g %g",
+			fprintf(fp,"%g %g %g %g %g %g %g ",
 				rho_gas, mr_gas, psi_gas, u_gas, mr_23, psi_23, u_ana);
 		}
 
+		double E = Potential_Profile(iCluster, r);
+		double fE = Distribution_Function(E);
+		double fE_HQ = hernquist_distribution_func(iCluster, E);
+
+		fprintf(fp, "%g %g %g ", E, fE, fE_HQ);
+
 		fprintf(fp,"\n");
 	}
+
+
 
 	fclose(fp);
 

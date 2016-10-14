@@ -48,7 +48,7 @@ void Setup_Profiles(const int i)
 	}
 	
 	setup_dm_distribution_function(i);
-
+	
 	show_profiles(i);
 
 	return ;
@@ -227,9 +227,9 @@ static void	setup_dm_potential_profile(const int iCluster)
 
 	double dpsi_dr = 0, psi0 = 0;
 
-	for (int i = 1; i < NTABLE-1; i++) { // extrapolate to make 
-										 // strictly decreasing
-		if (r_table[i] < 1e6)
+	for (int i = 1; i < NTABLE-1; i++) { // extrapolate powerlaw
+
+		if (r_table[i] < 2*Halo[iCluster].R_Sample[1])
 			continue;
 
 		if (dpsi_dr == 0) {
@@ -472,7 +472,7 @@ static void setup_gas_potential_profile(const int i)
 	double r_table[NTABLE] = { 0 };
 
 	double rmin = 10; // mostly shot noise below anyway
-	double rmax = 2*Halo[i].R_Sample[0]; // extrapolate for r > rmax
+	double rmax = 1.1*Halo[i].R_Sample[0];
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 
 	gsl_function gsl_F = { 0 };
@@ -480,18 +480,18 @@ static void setup_gas_potential_profile(const int i)
 	gsl_F.params = (void *) &i;
 
 	gsl_integration_workspace *gsl_workspace = NULL;
-	gsl_workspace = gsl_integration_workspace_alloc(8*NTABLE);
+	gsl_workspace = gsl_integration_workspace_alloc(NSAMPLE);
 
 	for (int j = 0; j < NTABLE; j++) {
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-2, 8*NTABLE,
+		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-2, NSAMPLE,
   			GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 	}
 	
 	double gauge = 0;
-	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-2, 8*NTABLE, 
+	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-2, NSAMPLE, 
   		GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
 
 	for (int j = 0; j < NTABLE; j++) // psi = -phi > 0
@@ -749,15 +749,14 @@ static double eddington_integrant(double psi, void *params)
 
 static void setup_dm_distribution_function(const int iCluster)
 {
-	double rmin = Zero; // 0 wont work 
-	double rmax = Infinity; // large val for accuracy
+	const double rmin = Zero;
+	const double rmax = Infinity;
 
 	double rstep = log10(rmax/rmin) / NSAMPLE; // good up to one Gpc
 
 	double psi[NSAMPLE] = { 0 }, 
 		   rho[NSAMPLE] = { 0 };
 
-	#pragma omp parallel for  
 	for (int i = 0; i < NSAMPLE; i++) {
 		
 		double r = rmin * pow(10, i*rstep);
@@ -796,7 +795,7 @@ static void setup_dm_distribution_function(const int iCluster)
 
 	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
 
-	rstep = log10(rmax/rmin) / NTABLE; // only consider 10 Mpc radius
+	rstep = log10(rmax/rmin) / NTABLE;
 	
 	const double sqrt8 = sqrt(8.0);
 
@@ -833,7 +832,7 @@ static void setup_dm_distribution_function(const int iCluster)
 	#pragma omp parallel
 	{
 	fE_params.acc = gsl_interp_accel_alloc();
-	fE_params.spline = gsl_spline_alloc(gsl_interp_akima, NTABLE);
+	fE_params.spline = gsl_spline_alloc(gsl_interp_cspline, NTABLE);
 	}
 	
 	int nSpline = 0;
@@ -844,7 +843,7 @@ static void setup_dm_distribution_function(const int iCluster)
 		
 		y[i] = log10(fE[NTABLE-i-1]);
 
-	//	printf("%d %g %g \n", i, x[i], y[i]);
+		//printf("%d %g %g \n", i, x[i], y[i]);
 	}
 
 	#pragma omp parallel

@@ -895,13 +895,14 @@ static void show_profiles(const int iCluster)
 
 	FILE *fp = fopen(fname, "w");
 	
-	fprintf(fp, "#r, rho_dm, mr_dm, psi_dm, rho_HQ,  mr_nfw, mr_hq, psi_nfw, psi_hq ");
+	fprintf(fp, "#r, rho_dm, mr_dm, psi_dm, rho_HQ,  mr_nfw, mr_hq,"
+				" psi_nfw, psi_hq ");
 	if (Halo[iCluster].Mass200[0] > 0)
 		fprintf(fp, "rho_gas, mr_gas, psi_gas, u_gas, mr_23, psi_23, u_ana ");
 	fprintf(fp, "E, fE, fE_hq \n");
 	
 	const double rmin = Zero;
-	const double rmax = Infinity;
+	const double rmax = 1e5 * Param.Boxsize;
 
 	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
 
@@ -939,7 +940,7 @@ static void show_profiles(const int iCluster)
 			fprintf(fp,"%g %g %g %g %g %g %g ",
 				rho_gas, mr_gas, psi_gas, u_gas, mr_23, psi_23, u_ana);
 		}
-
+		
 		double E = Potential_Profile(iCluster, r);
 		double fE = Distribution_Function(E);
 		double fE_HQ = hernquist_distribution_func(iCluster, E);

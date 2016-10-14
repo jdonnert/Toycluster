@@ -34,7 +34,7 @@ void Make_velocities()
 
 		#pragma omp parallel for schedule(dynamic) 
         for (size_t ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM
-
+			
 			double dx = Halo[i].DM[ipart].Pos[0] - dCoM[0] - boxhalf;
             double dy = Halo[i].DM[ipart].Pos[1] - dCoM[1] - boxhalf;
             double dz = Halo[i].DM[ipart].Pos[2] - dCoM[2] - boxhalf;
@@ -77,11 +77,12 @@ void Make_velocities()
         } // for ipart
 
 #if defined(SUBSTRUCTURE) && defined(SLOW_SUBSTRUCTURE)
-		if(i == SUBHOST) // at main cluster only, because we take its f(E)
+		if(i == SUBHOST) // at host cluster only, because we take its f(E)
 			set_subhalo_bulk_velocities();
 #endif
 		
 		/* bulk velocity */
+		#pragma omp parallel for schedule(dynamic) 
 		for (size_t ipart = 0; ipart < Halo[i].Npart[1]; ipart++) { // DM 
             
             Halo[i].DM[ipart].Vel[0] += Halo[i].BulkVel[0]; 
@@ -91,6 +92,7 @@ void Make_velocities()
 
 		if (i < Sub.First) { // Main Halos
 
+			#pragma omp parallel for schedule(dynamic) 
 	        for (size_t ipart = 0; ipart < Halo[i].Npart[0]; ipart++) { // gas 
     	        
         	    Halo[i].Gas[ipart].Vel[0] += Halo[i].BulkVel[0]; 
@@ -153,38 +155,39 @@ static double sph_kernel_wc2(const float r, const float h)
 
 void set_subhalo_bulk_velocities()
 {
-	const float d0[3] = {Halo[SUBHOST].D_CoM[0], Halo[SUBHOST].D_CoM[1], 
-						Halo[SUBHOST].D_CoM[2]};
+	const double boxhalf = Param.Boxsize/2;
 
 	printf("\n");
 
+	const double M = Halo[SUBHOST].Mtotal;
+
+	Setup_Profiles(SUBHOST);
+
 	for (int i = Sub.First; i < Param.Nhalos; i++) { 
-		
-		double M = Halo[i].Mtotal;
-               
-        float dx = Halo[i].D_CoM[0] - d0[0];
-        float dy = Halo[i].D_CoM[1] - d0[1];
-        float dz = Halo[i].D_CoM[2] - d0[2];
+              
+        float dx = Halo[i].D_CoM[0] - Halo[SUBHOST].D_CoM[0];
+        float dy = Halo[i].D_CoM[1] - Halo[SUBHOST].D_CoM[1];
+        float dz = Halo[i].D_CoM[2] - Halo[SUBHOST].D_CoM[2];
 		
 		double r = sqrt(dx*dx + dy*dy + dz*dz); 
 
-		double pot = -Potential_Profile(i, r);
-        double vmax = sqrt(-2*pot);
-        double emax = -pot;
+		double psi = Potential_Profile(i, r);
+        double vmax = sqrt(2*psi);
+        double emax = psi;
 		double qmax = 4*pi * p2(vmax)/M * Distribution_Function(emax);
 
         double v = 0;
 
-        for (int i = 0; i < 9000; i++) { 
-
-            double lower_bound = qmax * erand48(Omp.Seed);
+        for (int j = 0; j < 100; j++) { 
+            
+			double lower_bound = qmax * erand48(Omp.Seed);
 
             v = vmax * erand48(Omp.Seed);
 
-            double Etot = 0.5 * v*v + pot;  
+            double Etot = 0.5 * v*v - psi;  
 
-	 		double q = 4*pi/M * p2(v) * Distribution_Function(-Etot);
-
+	 		double q = 4*pi * p2(v)/M * Distribution_Function(-Etot);
+			
 			if (q >= lower_bound)
 				break;
 
@@ -197,14 +200,14 @@ void set_subhalo_bulk_velocities()
 		double U = Internal_Energy_Profile(0, r);
 		double cs = sqrt(U * adiabatic_index * (adiabatic_index-1));
 
-		v *= Param.Zero_Energy_Orbit_Fraction;
+		v = fmax(0.6*cs, v);
+
+		printf("Sub=%d v=%g r=%g cs=%g stripped =%d\n",
+				i, v, r/Halo[SUBHOST].R200, cs, Halo[i].Is_Stripped);
 
         Halo[i].BulkVel[0] = (float) (v * sin(theta) * cos(phi));
         Halo[i].BulkVel[1] = (float) (v * sin(theta) * sin(phi));
         Halo[i].BulkVel[2] = (float) (v * cos(theta));
-
-		printf("Sub=%d v=%g r=%g cs=%g Gas Stripped ?=%d\n",
-				i, v, r/Halo[SUBHOST].R200, cs, Halo[i].Is_Stripped);
 	}
 
 	return ;

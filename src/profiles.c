@@ -712,11 +712,9 @@ static interpolation_parameters fE_params;
 
 double Distribution_Function(const double E)
 {
-	double log_E = log10(E);
+	double fE =  gsl_spline_eval(fE_params.spline, E, fE_params.acc);
 
-	double log10_fE =  gsl_spline_eval(fE_params.spline, log_E, fE_params.acc);
-
-	return pow(10, log10_fE);
+	return fE;
 }
 
 /* This is the absolute potential psi = -phi.  */
@@ -839,9 +837,9 @@ static void setup_dm_distribution_function(const int iCluster)
 
 	for (int i = 0; i < NTABLE; i++) { // interpolate fE in log space
 
-		x[i] = log10(E[NTABLE-i-1]);
+		x[i] = (E[NTABLE-i-1]);
 		
-		y[i] = log10(fE[NTABLE-i-1]);
+		y[i] = (fE[NTABLE-i-1]);
 
 		//printf("%d %g %g \n", i, x[i], y[i]);
 	}
@@ -901,13 +899,11 @@ static void show_profiles(const int iCluster)
 	fprintf(fp, "E, fE, fE_hq \n");
 	
 	const double rmin = Zero;
-	const double rmax = 1e5 * Param.Boxsize;
+	const double rmax = Infinity;
 
 	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
 
-	const int N = 1000;
-
-	for (int i = 0; i < N; i++) {
+	for (int i = 0; i < NTABLE; i++) {
 	
 		double r = rmin * pow(10, i*dr);
 		
@@ -948,8 +944,6 @@ static void show_profiles(const int iCluster)
 
 		fprintf(fp,"\n");
 	}
-
-
 
 	fclose(fp);
 

@@ -175,7 +175,7 @@ void set_subhalo_bulk_velocities()
 
         double v = 0;
 
-        for (;;) { 
+        for (int i = 0; i < 9000; i++) { 
 
             double lower_bound = qmax * erand48(Omp.Seed);
 
@@ -187,6 +187,8 @@ void set_subhalo_bulk_velocities()
 
 			if (q >= lower_bound)
 				break;
+
+			v = 0;
         }
     
         double theta = acos(2 *  erand48(Omp.Seed) - 1);

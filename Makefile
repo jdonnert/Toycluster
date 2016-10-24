@@ -7,9 +7,10 @@ SHELL = /bin/bash
 
 OPT += -DBETA=0.55 		 	 # slope between rc and rcut. keep >0.5
 OPT += -DRCUT_R200_RATIO=1 # values >1 make cluster unstable, use with care
-
-#OPT     += -DPARABOLA       # merge in a parabola
-OPT	+= -DCOMET				 # merge like a comet, ball+tail (recommended)
+	
+#OPT += -DPARABOLA       # merge in a parabola
+OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
+						 # if nothing is selected, merge as ball with R_Sample
 
 #OPT 	+= -DGIVEPARAMS		 # set beta models in parameter file
 

@@ -12,6 +12,9 @@ ZeroEOrbitFrac 0
 
 Cuspy       1      % Use cuspy model (rc /= 10)
 
+beta_0		0.55
+beta_1		0.55
+
 Redshift	0.188
 
 Bfld_Norm   45e-6    % B(r) = B0 * normalised_density^eta
@@ -32,13 +35,11 @@ UnitVelocity_in_cm_per_s 	1e5                %  1 km/sec
 % cluster 0
 c_nfw_0     4
 v_com_0     0
-beta_0		0.54
 rc_0        30
 
 % cluster 1
 c_nfw_1    4.089
 v_com_1     0
-beta_1		0.79
 rc_1        300
 
 %% -DADD_THIRD_SUBHALO Options

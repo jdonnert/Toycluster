@@ -253,7 +253,7 @@ static bool reject_subhalo(const int i)
 	if (rho_sub < rho_host*MIN_DENSITY_CONTRAST) 
 		resample = true;
 
-	if (r > Halo[SUBHOST].R200)
+	if (r > 0.8 * Halo[SUBHOST].R200)
 		resample = true;
 
 #ifdef ADD_THIRD_SUBHALO

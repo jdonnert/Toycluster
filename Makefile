@@ -51,7 +51,7 @@ endif
 
 ifeq ($(SYSTYPE),MSI)
 CC      	= icc
-OPTIMIZE	= -Wall -g  -O0
+OPTIMIZE	= -Wall -g  -O3 -xhost -ipo4
 GSL_INCL 	= -I/home/jonestw/donne219/Libs/$(shell hostname)/include
 GSL_LIBS	= -L/home/jonestw/donne219/Libs/$(shell hostname)/lib
 endif

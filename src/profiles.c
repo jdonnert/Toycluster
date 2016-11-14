@@ -277,8 +277,6 @@ double DM_Potential_Profile_HQ(const int i, const double r)
 	return -G * Halo[i].Rho0_DM * 4*pi*p2(Halo[i].A_hernq) /2/ (1+ra);
 }
 
-/************ Gas Profiles *************/
-
 /* Double beta profile at rc and rcut */
 
 double Gas_Density_Profile(const double r, const int i)
@@ -316,6 +314,10 @@ static gsl_interp_accel *M_Acc = NULL;
 static gsl_spline *Minv_Spline = NULL;
 static gsl_interp_accel *Minv_Acc = NULL;
 #pragma omp threadprivate(Minv_Spline, Minv_Acc)
+
+static gsl_spline *MU_Spline = NULL;
+static gsl_interp_accel *MU_Acc = NULL;
+#pragma omp threadprivate(MU_Spline, MU_Acc)
 
 double Gas_Mass_Profile(const double r_in, const int i)
 {
@@ -364,12 +366,11 @@ void Setup_Gas_Mass_Profile(const int j)
 
 		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-7, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
-
+	
 		if (m_table[i] < m_table[i-1])
 			m_table[i] = m_table[i-1]; // integrator may fluctuate
 
 		//printf("%g \n", m_table[i]);
-			
 	}
 
 	m_table[0] = 0;
@@ -386,7 +387,7 @@ void Setup_Gas_Mass_Profile(const int j)
 
 	Minv_Spline = gsl_spline_alloc(GSL_SPLINE, NTABLE);
 	gsl_spline_init(Minv_Spline, m_table, r_table, NTABLE);
-
+	
 	} // omp parallel
 
 	return ;
@@ -583,10 +584,6 @@ static double u_integrant(double r, void *param) // Donnert 2014, eq. 9
 {
 	const int i = *((int *) param);
 
-#ifdef NO_RCUT_IN_T
-	rcut = Infinity;
-#endif
-
 	double rho_gas = Gas_Density_Profile(r, i);
 	double Mr_Gas = Gas_Mass_Profile(r, i);
 	double Mr_DM = 1.1*DM_Mass_Profile(r,i); // bias DM halo for stability
@@ -602,6 +599,9 @@ static void setup_internal_energy_profile(const int i)
 	double rmin = Zero;
 	double rmax = Infinity;
 	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
+
+	double save_Rcut = Halo[i].Rcut; // leave it hot at R200
+	Halo[i].Rcut = 1e10;
 
 	#pragma omp parallel 
 	{
@@ -626,33 +626,28 @@ static void setup_internal_energy_profile(const int i)
 		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-7, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &u_table[j], &error);
 
-		double rho0 = Halo[i].Rho0;
-		double rc = Halo[i].Rcore;
-		double beta = Halo[i].Beta;
-		double rcut = Halo[i].Rcut;
-		int is_cuspy = Halo[i].Have_Cuspy;
-
-#ifdef NO_RCUT_IN_T
-		rcut = Infinity;
-#endif
 		double rho_gas = Gas_Density_Profile(r, i);
 
 		u_table[j] *= G/((adiabatic_index-1)*rho_gas); // Donnert 2014, eq. 9
-		
-		//printf("%d %g %g %g %g \n", j,r, rho_gas, u_table[j], 
-		//						u_integrant(r, (void *)&i ));
 	}
 
-	u_table[0] = u_table[1];
-
 	gsl_integration_workspace_free(gsl_workspace);
+
+	} // omp parallel
+
+	u_table[0] = u_table[1];
 	
+	#pragma omp parallel 
+	{
+
 	U_Acc = gsl_interp_accel_alloc();
 
 	U_Spline = gsl_spline_alloc(GSL_SPLINE, NTABLE);
 	gsl_spline_init(U_Spline, r_table, u_table, NTABLE);
 	
 	} // omp parallel
+
+	Halo[i].Rcut = save_Rcut;
 
 	return ;
 }

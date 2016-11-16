@@ -36,10 +36,6 @@ void Setup()
 
     for (int i = 0; i < Param.Nhalos; i++) { 
 
-//#ifndef GIVEPARAMS
-//Halo[i].Beta = BETA; // now always give beta in the parameter file
-//#endif
-
         Halo[i].Mass200[1] = Halo[i].Mtotal200 / (1+bf);
         Halo[i].Mass200[0] = Halo[i].Mtotal200 - Halo[i].Mass200[1];
 

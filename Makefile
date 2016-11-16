@@ -5,7 +5,7 @@
 
 SHELL = /bin/bash
 
-OPT += -DRCUT_R200_RATIO=1.1 # values >1 make cluster unstable, use with care
+OPT += -DRCUT_R200_RATIO=1.2 # values >1 make cluster unstable, use with care
 
 #OPT += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)

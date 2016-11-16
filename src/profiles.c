@@ -2,8 +2,8 @@
 #include <gsl/gsl_spline.h>
 #include "globals.h"
 
-#define NTABLE 512
-#define NSAMPLE (2*NTABLE)
+#define NTABLE 256
+#define NSAMPLE (32*NTABLE) // oversample ! 
 #define GSL_SPLINE gsl_interp_cspline
 
 static void setup_internal_energy_profile(const int i);
@@ -600,9 +600,6 @@ static void setup_internal_energy_profile(const int i)
 	double rmax = Infinity;
 	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
 
-	double save_Rcut = Halo[i].Rcut; // leave it hot at R200
-	Halo[i].Rcut = 1e10;
-
 	#pragma omp parallel 
 	{
 	
@@ -646,8 +643,6 @@ static void setup_internal_energy_profile(const int i)
 	gsl_spline_init(U_Spline, r_table, u_table, NTABLE);
 	
 	} // omp parallel
-
-	Halo[i].Rcut = save_Rcut;
 
 	return ;
 }
@@ -779,14 +774,13 @@ static void setup_dm_distribution_function(const int iCluster)
 
 	#pragma omp parallel // make f(E) table
 	{
-
-	gsl_integration_workspace *w = gsl_integration_workspace_alloc(NSAMPLE);
-
 	interpolation_parameters int_params; 
 	int_params.acc = gsl_interp_accel_alloc();
-	int_params.spline = gsl_spline_alloc(gsl_interp_cspline, NSAMPLE);
+	int_params.spline = gsl_spline_alloc(gsl_interp_akima, NSAMPLE);
 
 	gsl_spline_init(int_params.spline, x, y, NSAMPLE);
+
+	gsl_integration_workspace *w = gsl_integration_workspace_alloc(NSAMPLE);
 
 	rstep = log10(rmax/rmin) / NTABLE;
 	
@@ -803,7 +797,7 @@ static void setup_dm_distribution_function(const int iCluster)
 
 		gsl_function F = {&eddington_integrant, &int_params};
 		
-		gsl_integration_qags(&F, 0, E[i], 0, 1e-3, NSAMPLE, w, &fE[i], &err); 
+		gsl_integration_qags(&F, 0, E[i], 0, 1e-2, NSAMPLE, w, &fE[i], &err); 
 		
 		fE[i] /= sqrt8 * pi * pi;
 		

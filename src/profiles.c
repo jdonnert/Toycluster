@@ -793,12 +793,16 @@ static void setup_dm_distribution_function(const int iCluster)
 
 		double r = rmin * pow(10, i*rstep);
 
-		int_params.E = E[i] = Potential_Profile(iCluster, r);
+		E[i] = Potential_Profile(iCluster, r);
 
 		gsl_function F = {&eddington_integrant, &int_params};
+		int_params.E = E[i];
 		
-		gsl_integration_qags(&F, 0, E[i], 0, 1e-2, NSAMPLE, w, &fE[i], &err); 
-		
+		double Emax = E[i];
+		double Emin = Emax / 512; // ~= 0, all of the integrant is close to Emax
+
+		gsl_integration_qags(&F, Emin, Emax, 0, 1e-4, NSAMPLE, w, &fE[i], &err);
+
 		fE[i] /= sqrt8 * pi * pi;
 		
 		//printf("%d %g %g %g %g %g %g \n", i, r, E[i], fE[i],

@@ -315,10 +315,6 @@ static gsl_spline *Minv_Spline = NULL;
 static gsl_interp_accel *Minv_Acc = NULL;
 #pragma omp threadprivate(Minv_Spline, Minv_Acc)
 
-static gsl_spline *MU_Spline = NULL;
-static gsl_interp_accel *MU_Acc = NULL;
-#pragma omp threadprivate(MU_Spline, MU_Acc)
-
 double Gas_Mass_Profile(const double r_in, const int i)
 {
 	double r = fmin(r_in, Halo[i].R_Sample[0]);

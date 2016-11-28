@@ -489,12 +489,12 @@ static void setup_gas_potential_profile(const int i)
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 
-		gsl_integration_qag(&gsl_F, 1e-7, r_table[j], 0, 1e-5, NSAMPLE,
+		gsl_integration_qag(&gsl_F, 1e-7, r_table[j], 0, 1e-3, NSAMPLE,
   			GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 	}
 	
 	double gauge = 0;
-	gsl_integration_qag(&gsl_F, 1e-7, Infinity, 0, 1e-5, NSAMPLE, 
+	gsl_integration_qag(&gsl_F, 1e-7, Infinity, 0, 1e-3, NSAMPLE, 
   		GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
 
 	for (int j = 0; j < NTABLE; j++) // psi = -phi > 0

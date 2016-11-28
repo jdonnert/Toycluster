@@ -23,7 +23,7 @@ void Setup()
 	
 	const double z = Param.Redshift;
 	const double rho_crit =  Critical_Density(z);
-	const double delta = Overdensity_Parameter();
+	const double delta = 200; //Overdensity_Parameter();
     
     /* Halo Masses inside r200 */
     Halo[0].Mtotal200 = Param.Mtot200 / (1+Xm) ;

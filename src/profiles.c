@@ -433,7 +433,9 @@ double Mass_Profile_23(const double r, const int i)
 
 /* The grav. potential from the gas density. We solve Poisson's equation 
  * numerically. Here psi is the -phi >= 0, 
- * The potential is extrapolated away from the sampling radius for accuracy */
+ * The potential is extrapolated away from the sampling radius for accuracy.
+ * Because of the pole at r=0, we integrate from 1e-7 to help the quadrature 
+ * alg.*/
 
 static gsl_spline *Psi_Spline = NULL;
 static gsl_interp_accel *Psi_Acc = NULL;
@@ -468,8 +470,8 @@ static void setup_gas_potential_profile(const int i)
 	double psi_table[NTABLE] = { 0 };
 	double r_table[NTABLE] = { 0 };
 
-	double rmin = 10; // mostly shot noise below anyway
-	double rmax = 1.1*Halo[i].R_Sample[0];
+	double rmin = Zero;
+	double rmax = Infinity;
 	double log_dr = ( log10(rmax/rmin) ) / (NTABLE - 1);
 
 	gsl_function gsl_F = { 0 };
@@ -483,12 +485,12 @@ static void setup_gas_potential_profile(const int i)
 
 		r_table[j] = rmin * pow(10, log_dr * j);
 
-		gsl_integration_qag(&gsl_F, 0, r_table[j], 0, 1e-2, NSAMPLE,
+		gsl_integration_qag(&gsl_F, 1e-7, r_table[j], 0, 1e-3, NSAMPLE,
   			GSL_INTEG_GAUSS61, gsl_workspace, &psi_table[j], &error);
 	}
 	
 	double gauge = 0;
-	gsl_integration_qag(&gsl_F, 0, Infinity, 0, 1e-2, NSAMPLE, 
+	gsl_integration_qag(&gsl_F, 1e-7, Infinity, 0, 1e-3, NSAMPLE, 
   		GSL_INTEG_GAUSS61, gsl_workspace, &gauge, &error);
 
 	for (int j = 0; j < NTABLE; j++) // psi = -phi > 0

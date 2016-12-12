@@ -1,96 +1,43 @@
 SHELL = /bin/bash
 
-## OPTIONS  ##
-OPT 	+= -DNFWC_DUFFY08	# alternate fit to concentr. param
-
-OPT += -DBETA=0.54
-
-#OPT     += -DPARABOLA       # merge in a parabola
-OPT	+= -DCOMET			# merge like a comet, ball+tail (recommended)
-
-#OPT	+= -DDOUBLE_BETA_COOL_CORES
-
-#OPT 	+= -DGIVEPARAMS		# more merger parameters in .par file
-
-OPT	+= -DNO_RCUT_IN_T		# set Rcut very large
-
-#OPT	+= -DSUBSTRUCTURE	# add substructure
-#OPT += -DSUBHOST=1		# host halos
-#OPT	+= -DSLOW_SUBSTRUCTURE	# put subhalos on Hernquist orbits
-#OPT += -DREPORTSUBHALOS		# print info about all subhaloes
-
-#OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
-#OPT  += -DTHIRD_HALO_ONLY
-
-#OPT += -DSPH_CUBIC_SPLINE 	# for use with Gadget2
-
-## Target Computer ##
 ifndef SYSTYPE
-SYSTYPE := $(shell hostname)
+    SYSTYPE := $(shell hostname)
 endif
 
-# standard systypes
-CC       = gcc
-OPTIMIZE = -Wall -g -O2
-GSL_INCL = $(CPPFLAGS)
-GSL_LIBS = $(LDFLAGS)
-
-ifeq ($(SYSTYPE),DARWIN)
-CC      	=  icc
-OPTIMIZE	=-fast -g -m64  -xhost
-GSL_INCL 	= $(CPPFLAGS)
-GSL_LIBS	= -L/Users/jdonnert/Dev/lib
+ifeq ($(SYSTYPE),MBP)
+CC       = icc
+OPTIMIZE = -Wall -O2
+GSL_INCL =  -I/usr/local/Cellar/gsl/1.16/include
+GSL_LIBS =  -L/usr/local/Cellar/gsl/1.16/lib
 endif
 
-ifeq ($(SYSTYPE),MSI)
-CC      	= icc
-OPTIMIZE	= -Wall -g  -O3 -xhost
-GSL_INCL 	= 
-GSL_LIBS	= 
-FFTW_LIBS 	= 
-FFTW_INCL 	=
-endif
-
-ifeq ($(SYSTYPE),mach64.ira.inaf.it)
-CC      	= gcc
-OPTIMIZE	= -O2 -Wall -g  -m64 -march=native -mtune=native -mprefer-avx128 -fopenmp  -minline-all-stringops -fprefetch-loop-arrays --param prefetch-latency=300 -funroll-all-loops
-GSL_INCL 	= -I/homes/donnert/Libs/include
-GSL_LIBS	= -L/homes/donnert/Libs/lib
-FFTW_LIBS 	= 
-FFTW_INCL 	=
-endif
 
 ## TARGET ##
 
-EXEC = Toycluster
+EXEC = wvtbox 
 
 ## FILES ##
 
-SRCDIR	= src/
+SRCDIR    = src/
 
-OBJFILES = main.o aux.o positions.o velocities.o temperature.o \
-		   magnetic_field.o io.o unit.o cosmo.o setup.o  tree.o \
-		   sph.o wvt_relax.o substructure.o ids.o sort.o peano.o
+SRCFILES := ${shell find $(SRCDIR) -name \*.c -print} # all .c files in SRCDIR
+OBJFILES = $(SRCFILES:.c=.o)
 
-OBJS	= $(addprefix $(SRCDIR),$(OBJFILES))
+INCLFILES := ${shell find src -name \*.h -print} # all .h files in SRCDIR
+INCLFILES += Makefile
 
-INCLFILES = globals.h proto.h io.h tree.h sph.h macro.h sort.h peano.h \
-			../Makefile
+CFLAGS     = -std=c99 -fopenmp $(OPTIMIZE) $(OPT) $(GSL_INCL) $(FFTW_INCL)
 
-INCL	= $(addprefix $(SRCDIR),$(INCLFILES))
+LINK    = $(GSL_LIBS) -lm -lgsl -lgslcblas 
 
-CFLAGS 	= -std=c99 -fopenmp $(OPTIMIZE) $(OPT) $(GSL_INCL) $(FFTW_INCL)
+## RULES ##
 
-LINK	= -lm -lgsl -lgslcblas $(GSL_LIBS) $(FFTW_LIBS)
+%.o : %.c
+	@echo [CC] $@
+	@$(CC) $(CFLAGS)  -o $@ -c $<
 
-## RULES ## 
+$(EXEC) : $(OBJFILES)
+	$(CC) $(CFLAGS) $(OBJFILES) $(LINK) -o $(EXEC)
+	@ctags -w $(SRCFILES) $(INCLFILES)
 
-$(EXEC)	: $(OBJS)
-	@echo SYSTYPE=$(SYSTYPE)
-	$(CC) $(CFLAGS) $(OBJS) $(LINK) -o $(EXEC)
-	@cd src && ctags *.[ch]
-
-$(OBJS)	: $(INCL)
-
-clean	: 
-	rm -f  $(OBJS) $(EXEC)
+$(OBJFILES) : $(INCLFILES) $(SRCFILES)

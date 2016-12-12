@@ -1,0 +1,13 @@
+Output_file ./IC_single_0   % Base name
+
+Ntotal      2000000 % Total Number of Particles
+
+Boxsize     10
+
+bf          0.17     % bf in r200, bf = 17% ~ 14% in r500
+h_100       0.7      % HubbleConstant/100
+
+%Units
+UnitLength_in_cm             3.085678e21        %  1.0 kpc
+UnitMass_in_g                1.989e43           %  1.0e10 solar masses
+UnitVelocity_in_cm_per_s     1e5                %  1 km/sec

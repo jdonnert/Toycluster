@@ -15,7 +15,7 @@ extern struct GADGET_Header{
     int flag_stellarage;
     int flag_metals;
     unsigned int npartTotalHighWord[6];
-    char fill[64];      // fill to 256 Bytes 
+    char fill[64];      // fill to 256 Bytes
 } Header;
 
 struct Block_Info{
@@ -32,19 +32,19 @@ enum iofields{
     IO_POS,
     IO_VEL,
     IO_ID,
-    IO_U,
-	IO_RHO,
+    IO_RHO,
+    IO_RHOMODEL,
     IO_HSML,
+    IO_U,
     IO_BFLD,
-	IO_RHOMODEL,
     IO_LASTENTRY
 };
 
 size_t my_fread(void *, size_t, size_t, FILE *, int);
 int find_block(FILE *, char *);
 
-void write_header();
-void add_block(FILE *, enum iofields);
+void write_header(FILE *, bool);
+void add_block(FILE *, enum iofields, bool);
 void set_block_info(enum iofields);
 void fill_write_buffer(enum iofields, void *, size_t, size_t);
 size_t  my_fwrite(void *, size_t, size_t, FILE *);

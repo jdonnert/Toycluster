@@ -16,12 +16,13 @@
 #define min(a,b) ((a)<(b)?(a):(b)) // this doesnt always work: c = max(a++, b)
 #define max(a,b) ((a)>(b)?(a):(b))
 
-#define len3(a) sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]) // these are slow ! 
+#define len3(a) sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]) // these are slow !
 #define len2(a) sqrt(a[0]*a[0] + a[1]*a[1])
 
 #define len3_sq(a) (a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
 #define len2_sq(a) (a[0]*a[0] + a[1]*a[1])
 
-#define p2(a) ((a)*(a))  
+#define p2(a) ((a)*(a))
 #define p3(a) ((a)*(a)*(a))
+
 

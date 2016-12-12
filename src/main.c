@@ -1,72 +1,62 @@
 #include "globals.h"
 
-/* 
- * make IC of a cluster collision 
- * Given total mass, mass ratio and Magnetic field parameters
- * we assume a DM density following Hernquist 1998, Springel+ 2007
- * and model the gas according to Mastropietro+ 2008 
- * Published in Donnert 2014, Donnert+ 2016b. 
- * */
+/* Set up a box with SPH particles, then WVT relax the particles */
 
 int main(int argc, char *argv[])
 {
     printf("--- This is %s, Version %s ---\n", PROG_NAME, VERSION);
 
-	#pragma omp parallel 
+#pragma omp parallel
     {
 
-    Omp.ThreadID = omp_get_thread_num();
-    Omp.NThreads = omp_get_num_threads();   
-	Omp.Seed[2] = 14041981 * (Omp.ThreadID + 1);
-	erand48(Omp.Seed); // remove leading 0
+        Omp.ThreadID = omp_get_thread_num();
+        Omp.NThreads = omp_get_num_threads();
+        Omp.Seed[2] = 14041981 * (Omp.ThreadID + 1);
+        erand48(Omp.Seed); // remove leading 0
 
-    if (Omp.ThreadID == 0)
-        printf("Running with %d Threads\n", Omp.NThreads);
+        if (Omp.ThreadID == 0)
+            printf("Running with %d Threads\n", Omp.NThreads);
 
     } // omp parallel
 
-    Assert(argc == 2, "Usage : ./Toycluster $parameterfile\n");
-	
+    Assert(argc == 2, "Usage : ./wvtbox $parameterfile\n");
+
     Read_param_file(argv[1]);
-    
-	Set_units();
-    
-    Set_cosmology();
-    
+
+    printf("Parameters:\n  Ntotal  = %d\n  Boxsize = %g\n\n",
+            Param.Ntotal, Param.Boxsize);
+
+    Set_units();
+
     Setup();
 
-#ifdef SUBSTRUCTURE
-    Setup_Substructure();
-#endif
+    Make_positions();
 
-    Make_positions();  
+    Make_IDs();
 
-	Make_IDs();
+    Shift_Origin(); // from here onwards: 0 < Pos < Boxsize
 
-    Shift_Origin(); // from here onwards: 0 < Pos < Boxsize 
-    
-    Show_mass_in_r200();
+    // Find_sph_quantities();
 
-    if (Cosmo.Baryon_Fraction) { // make SPH ICM
+    // char wvt_filename[CHARBUFSIZE] = "test";
+    // sprintf(wvt_filename, "test_%d", 99);
+    // Write_positions(wvt_filename);
 
-		Regularise_sph_particles();
+    /* for (int ipart = 0; ipart < Box.Npart[0]; ipart++) {
+        printf("ipart=%d  |  %g %g %g %g\n", ipart, Box.Gas[ipart].Pos[0],
+            Box.Gas[ipart].Pos[1], Box.Gas[ipart].Pos[2],
+            sqrt(p2(Box.Gas[ipart].Pos[0])+p2(Box.Gas[ipart].Pos[1])
+                +p2(Box.Gas[ipart].Pos[2])));
+    } */
 
-		Find_sph_quantities();
+    Regularise_sph_particles();
 
-        Make_magnetic_field();
-
-		Reassign_particles_to_halos();
-
-  		Show_mass_in_r200();
-
-        Make_temperatures();
-    }
-
-    Make_velocities();
-
-    Apply_kinematics();   
-	
-    Write_output();
+//    Find_sph_quantities();
+//
+//    Make_velocities();
+//
+//    Write_output();
 
     return EXIT_SUCCESS ;
 }
+

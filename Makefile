@@ -5,7 +5,7 @@
 
 SHELL = /bin/bash
 
-OPT += -DRCUT_R200_RATIO=1.2 # values >1 make cluster unstable, use with care
+OPT += -DRCUT_R200_RATIO=1.7 # large val make cluster unstable, use with care
 
 #OPT += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
@@ -13,7 +13,7 @@ OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 
 #OPT 	+= -DGIVEPARAMS		 # set beta models in parameter file
 
-#OPT	+= -DNO_RCUT_IN_T	 # set Rcut very large in U calculation
+OPT	+= -DNO_RCUT_IN_T	 # set Rcut very large in U calculation
 
 #
 #OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
@@ -66,7 +66,7 @@ endif
 
 ## TARGET ##
 
-EXEC = Toycluster
+EXEC = Toycluster_Hot
 
 ## FILES ##
 

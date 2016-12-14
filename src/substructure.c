@@ -194,7 +194,7 @@ static void set_subhalo_positions(int i)
 
 	double q = erand48(Omp.Seed);
 
-	double r = Halo[SUBHOST].R200 * inverted_subhalo_number_density_profile(q);
+	double r = 1.5* Halo[SUBHOST].R200 * inverted_subhalo_number_density_profile(q);
 
 	float theta = acos(2 *  erand48(Omp.Seed) - 1);
    	float phi = 2*pi * erand48(Omp.Seed);

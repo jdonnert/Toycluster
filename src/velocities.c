@@ -200,7 +200,7 @@ void set_subhalo_bulk_velocities()
 		double U = Internal_Energy_Profile(0, r);
 		double cs = sqrt(U * adiabatic_index * (adiabatic_index-1));
 
-		v = 0; //fmax(0,v);
+		v = fmax(0.6*cs,v);
 
 		printf("Sub=%d v=%g r=%g cs=%g stripped =%d\n",
 				i, v, r/Halo[SUBHOST].R200, cs, Halo[i].Is_Stripped);

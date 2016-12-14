@@ -134,7 +134,7 @@ void Setup_DM_Mass_Profile(const int iCluster)
 		gsl_F.function = &dm_mr_integrant;
 		gsl_F.params = (void *) &iCluster;
 
-		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-6, NTABLE, 
+		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-5, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
 	}
 	
@@ -360,7 +360,7 @@ void Setup_Gas_Mass_Profile(const int j)
 		gsl_F.function = &m_integrant;
 		gsl_F.params = (void *) &j;
 
-		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-7, NTABLE, 
+		gsl_integration_qag(&gsl_F, 0, r_table[i], 0, 1e-5, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &m_table[i], &error);
 	
 		if (m_table[i] < m_table[i-1])
@@ -598,6 +598,11 @@ static void setup_internal_energy_profile(const int i)
 	double rmax = Infinity;
 	double dr = ( log10(rmax/rmin) ) / (NTABLE-1);
 
+#ifdef NO_RCUT_IN_T
+	double rcut_old = Halo[i].Rcut;
+	Halo[i].Rcut = 10 * Halo[i].R200;
+#endif
+
 	#pragma omp parallel 
 	{
 	
@@ -618,7 +623,7 @@ static void setup_internal_energy_profile(const int i)
 		gsl_F.function = &u_integrant;
 		gsl_F.params = (void *) &i;
 
-		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-7, NTABLE, 
+		gsl_integration_qag(&gsl_F, r, rmax, 0, 1e-5, NTABLE, 
 				GSL_INTEG_GAUSS61, gsl_workspace, &u_table[j], &error);
 
 		double rho_gas = Gas_Density_Profile(r, i);
@@ -641,6 +646,10 @@ static void setup_internal_energy_profile(const int i)
 	gsl_spline_init(U_Spline, r_table, u_table, NTABLE);
 	
 	} // omp parallel
+
+#ifdef NO_RCUT_IN_T
+	Halo[i].Rcut = rcut_old;
+#endif
 
 	return ;
 }

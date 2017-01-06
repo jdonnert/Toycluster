@@ -5,27 +5,22 @@
 
 #define R200_RSAMPLE_RATIO 1.5
 
-/* 
- * Set all relevant parameters for the collision. This is a mess.
+/* Set all relevant parameters for the collision.
  * We first find R200 from the baryon fraction in R200 and the total mass
  * in R200 given the profiles and assumptions on the scaling of the cluster 
- * parameters c, beta, rho0 and rc with M200.
- */
+ * parameters c, beta, rho0 and rc with M200. */
 
 void Setup()
 {
-    double mtot[2] = {0}, mDM, mGas;
-    double d_clusters;
-    char string[256];
-    
 	const double bf = Cosmo.Baryon_Fraction;
     const double Xm = Param.Mass_Ratio;
 	
 	const double z = Param.Redshift;
 	const double rho_crit =  Critical_Density(z);
-	const double delta = 200; //Overdensity_Parameter();
+	const double delta = 200;
     
     /* Halo Masses inside r200 */
+
     Halo[0].Mtotal200 = Param.Mtot200 / (1+Xm) ;
     Halo[1].Mtotal200 = Param.Mtot200 - Halo[0].Mtotal200;
 
@@ -57,6 +52,9 @@ void Setup()
     }
     
 	Param.Boxsize = floor(2*R200_TO_RMAX_RATIO * Halo[0].R200); // fit scalings
+
+    char string[256];
+	double mtot[2] = {0};
 
     for (int i = 0; i < Param.Nhalos; i++) { // Baryons and total mass 
 	
@@ -190,8 +188,12 @@ void Setup()
     int nDM  = 0.5 * Param.Ntotal;
     int nGas = 0.5 * Param.Ntotal;
 
-    Param.Mpart[0] = mGas = mtot[0]/nGas;
-    Param.Mpart[1] = mDM = mtot[1]/nDM;
+    double mDM = mtot[1]/nDM, 
+		   mGas = mtot[0]/nGas;
+
+    Param.Mpart[0] = mGas;
+    Param.Mpart[1] = mDM;
+
 
     for (int i = 0; i<Param.Nhalos; i++) {
 
@@ -272,6 +274,9 @@ void Setup()
 			 Param.GravSofteningLength*Unit.Length/kpc2cgs);
 
     /* kinematics */
+    
+	double d_clusters;
+
     if (Xm) { // two clusters only
 
         d_clusters = 0.9 * (Halo[0].R200 + Halo[1].R200);

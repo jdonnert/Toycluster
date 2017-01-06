@@ -7,11 +7,7 @@
 
 #define NTABLE 2048    // length of interpolation table of M(r) 
 
-/* Cum. mass profile is inverted from a table */
-static void fill_mass_profile_table(int);
-static double invert_mass_profile(double);
 static void sort_particles(int *, const size_t );
-static double inverted_dm_mass_Profile(double q, const int i);
 
 static void sample_DM_particles(const int);
 static void sample_Gas_particles(const int);

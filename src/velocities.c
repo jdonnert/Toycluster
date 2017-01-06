@@ -141,25 +141,19 @@ static double sph_kernel_wc2(const float r, const float h)
 	return 21/2/pi/p3(h)*t*t*t*t * (1+4*u);
 }
 
-
-
-
 #ifdef SUBSTRUCTURE
 
-/* 
- * Sample <0>'s f(E) with r relative to <0>'s centre for all subhalos
+/* Sample <0>'s f(E) with r relative to <0>'s centre for all subhalos
  * i.e. treat every subhalos like a particle of <0> following the 
  * Hernquist derived velocity distribution. This will give random 
- * bound orbits 
- */
+ * bound orbits */
 
 void set_subhalo_bulk_velocities()
 {
 	const double boxhalf = Param.Boxsize/2;
+	const double M = Halo[SUBHOST].Mtotal;
 
 	printf("\n");
-
-	const double M = Halo[SUBHOST].Mtotal;
 
 	Setup_Profiles(SUBHOST);
 

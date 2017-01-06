@@ -563,8 +563,6 @@ double Gas_Potential_Profile_23(const int i, const float r) // beta = 2/3
 	return 4*pi*G * psi;
 }
 
-
-
 /* Numerical solution for all kinds of gas densities. We spline interpolate 
  * a table of solutions for speed. We have to solve the hydrostatic equation
  * (eq. 9 in Donnert 2014). */
@@ -691,11 +689,10 @@ double Internal_Energy_Profile_Analytic(const int i, const double d)
 
 /* Find f(E) for arbitrary spherically symmetric density-potential pairs by 
  * numerical integration of the Eddington equation.
- * We interpolate rho(psi) with an cubic spline using the GSL library and
+ * We interpolate rho(psi) with a cubic spline using the GSL library and
  * get the second derivative from the spline directly. This is a hard 1D 
- * integral to get to floating point precision ! We disable the GSL error
- * handler, because target accuracy can't always be reached. The Hernquist
- * f(E) is reproduce with a few 1e-3 accuracy ...
+ * integral to get to floating point precision ! The Hernquist
+ * f(E) is reproduced with a few 1e-3 accuracy ...
  * Kazantzidis+ 2004, Binney 1982, Binney & Tremaine pp. 298, Barnes 02 */  
 
 typedef struct {

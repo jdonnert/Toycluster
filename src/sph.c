@@ -221,8 +221,7 @@ extern void Bfld_from_rotA_SPH()
 	const double boxhalf = Param.Boxsize / 2;
     const double boxsize = Param.Boxsize;
 
-	#pragma omp parallel for shared(SphP, P) \
-    	schedule(dynamic, Param.Npart[0]/Omp.NThreads/64)
+	#pragma omp parallel for schedule(dynamic, Param.Npart[0]/Omp.NThreads/64)
     for (int ipart = 0; ipart < Param.Npart[0]; ipart++) {
         
 		int ngblist[NGBMAX] = { 0 };
@@ -298,130 +297,6 @@ extern void Bfld_from_rotA_SPH()
 
 	return ;
 }
-
-extern void Smooth_SPH_quantities()
-{
-	const float mpart = Param.Mpart[0];
-	const float boxhalf = Param.Boxsize / 2;
-    const float boxsize = Param.Boxsize;
-
-	printf("Smoothing Sph Quantities,"); fflush(stdout);
-
-	size_t nBytes = Param.Npart[0] * sizeof(float);
-	
-	float *uArr = Malloc(nBytes);
-	memset(uArr, 0, nBytes);
-
-	float *velArr[3] = { NULL }; 
-	velArr[0] = Malloc(nBytes);
-	velArr[1] = Malloc(nBytes);
-	velArr[2] = Malloc(nBytes);
-
-	memset(velArr[0], 0, nBytes);
-	memset(velArr[1], 0, nBytes);
-	memset(velArr[2], 0, nBytes);
-
-#pragma omp parallel for shared(SphP, P) \
-    schedule(dynamic, Param.Npart[0]/Omp.NThreads/128)
-    for (int ipart = 0; ipart < Param.Npart[0]; ipart++) {
-        
-		int ngblist[NGBMAX] = { 0 };
-	    int ngbcnt = Find_ngb_tree(ipart, SphP[ipart].Hsml, ngblist);
-
-        float varHsmlFac = SphP[ipart].VarHsmlFac;
-        float hsml = SphP[ipart].Hsml;
-        float rho_i = SphP[ipart].Rho;
-        float *pos_i = P[ipart].Pos;
-		
-		double wk_u = 0, wk_vel[3] = { 0 },  wk_total = 0;
-		
-		for (int i = 0; i < ngbcnt; i++) {
-
-			int jpart = ngblist[i];	
-
-            if (jpart == ipart)
-                continue;
-
-			float dx = pos_i[0] - P[jpart].Pos[0];
-			float dy = pos_i[1] - P[jpart].Pos[1];
-			float dz = pos_i[2] - P[jpart].Pos[2];
-			
-			if (dx > boxhalf)	// find closest image 
-				dx -= boxsize;
-
-			if (dx < -boxhalf)
-				dx += boxsize;
-
-			if (dy > boxhalf)
-				dy -= boxsize;
-
-			if (dy < -boxhalf)
-				dy += boxsize;
-
-			if (dz > boxhalf)
-				dz -= boxsize;
-
-			if (dz < -boxhalf)
-				dz += boxsize;
-
-            float r2 = p2(dx) + p2(dy) + p2(dz);
-
-			if (r2 > hsml*hsml) 
-                continue ;
-                
-			float r = sqrtf(r2);
-
-#ifdef SPH_CUBIC_SPLINE
-			float dwk = sph_kernel_derivative_M4(r, hsml);
-#else
-			float dwk = sph_kernel_derivative_WC6(r, hsml);
-#endif // SPH_CUBIC_SPLINE
-
-			float weight = -mpart/rho_i * dwk / r  * varHsmlFac;
-
-			wk_total += weight;
-
-            wk_u += SphP[jpart].U * weight;
-            
-			wk_vel[0] += P[jpart].Vel[0] * weight;
-            wk_vel[1] += P[jpart].Vel[1] * weight;
-            wk_vel[2] += P[jpart].Vel[2] * weight;
-		}
-
-		wk_u /= wk_total;
-		wk_vel[0] /= wk_total;
-		wk_vel[1] /= wk_total;
-		wk_vel[2] /= wk_total;
-		
-		float u_err = fabs(wk_u - SphP[ipart].U);
-
-		if ( u_err > JUMPTOLERANCE ) // replace with kernel weighted U
-			uArr[ipart] = wk_u;
-
-		velArr[0][ipart] = wk_vel[0];
-		velArr[1][ipart] = wk_vel[1];
-		velArr[2][ipart] = wk_vel[2];
-	}
-
-#pragma omp parallel for
-    for (int ipart = 0; ipart < Param.Npart[0]; ipart++) {
-		
-		if (uArr[ipart])
-			SphP[ipart].U = uArr[ipart];
-	
-		P[ipart].Vel[0] = velArr[0][ipart];
-		P[ipart].Vel[1] = velArr[1][ipart];
-		P[ipart].Vel[2] = velArr[2][ipart];
-	}
-
-	Free(uArr);
-	Free(velArr[0]); Free(velArr[1]); Free(velArr[2]);
-
-    printf(" done \n\n"); fflush(stdout);
-
-	return ;
-}
-
 
 static inline float sph_kernel_WC6(const float r, const float h)
 {   

@@ -1,6 +1,7 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_sort.h>
+#include <gsl/gsl_heapsort.h>
 
 #include "globals.h"
 
@@ -392,16 +393,14 @@ int compare_int(const void * a, const void *b)
 }
 
 
-/* 
- * memory efficient out of place sorting of both particle structures 
- * Knowing where idx starts in memory we can reconstruct ipart 
- */
+/* memory efficient out of place sorting of both particle structures 
+ * Knowing where idx starts in memory we can reconstruct ipart */
 
 static void sort_particles(int *ids, const size_t nPart) 
 {
     size_t *idx = Malloc(nPart*sizeof(*idx));
 
-	Qsort_Index(Omp.NThreads, idx, ids, nPart, sizeof(*ids), &compare_int);
+	gsl_heapsort_index(idx, ids, nPart, sizeof(*ids), &compare_int);
 	
     for (size_t i = 0; i < nPart; i++) {
 

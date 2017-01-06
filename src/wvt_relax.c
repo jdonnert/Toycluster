@@ -171,10 +171,7 @@ void Regularise_sph_particles()
             }
         }
 
-		int cnt = 0, cnt1 = 0, cnt2 = 0;
-
-		#pragma omp parallel for shared(delta,P) \
-			reduction(+:cnt) reduction(+:cnt1) reduction(+:cnt2)
+		#pragma omp parallel for
         for (int ipart = 0; ipart < nPart; ipart++) { // move particles
 
             P[ipart].Pos[0] += delta[0][ipart];

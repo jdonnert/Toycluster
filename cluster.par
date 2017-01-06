@@ -5,12 +5,12 @@ Output_file IC_single_0   % Base name
 Ntotal      1000000  % Total Number of Particles in R200
 Mtotal      1e5   % Total Mass in Code Units
 
-Mass_Ratio  0 %.3125       % set =0 for single cluster
+Mass_Ratio  0.3125       % set =0 for single cluster
 
 ImpactParam 50
 ZeroEOrbitFrac 0
 
-Cuspy       1      % Use cuspy model (rc /= 10)
+Cuspy       0      % Use cuspy model (rc /= 10)
 
 beta_0		0.55
 beta_1		0.55

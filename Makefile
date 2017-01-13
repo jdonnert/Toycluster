@@ -5,8 +5,6 @@
 
 SHELL = /bin/bash
 
-OPT += -DRCUT_R200_RATIO=1.7 # large val make cluster unstable, use with care
-
 #OPT += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 						 # if nothing is selected, merge as ball with R_Sample

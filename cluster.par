@@ -12,6 +12,7 @@ ZeroEOrbitFrac 0
 
 Cuspy       0      % Use cuspy model (rc /= 10)
 
+
 beta_0		0.55
 beta_1		0.55
 
@@ -21,7 +22,7 @@ Bfld_Norm   45e-6    % B(r) = B0 * normalised_density^eta
 Bfld_Eta    0.5     % like Bonafede 2010. B0 /=2 if Mtotal<5d4
 Bfld_Scale  100
 
-bf          0.17 	% bf in r200, bf = 17% ~ 14% in r500
+% bf          0.17 	% bf in r200, bf = 17% ~ 14% in r500
 h_100       0.7     % HubbleConstant/100
 
 %Units
@@ -33,14 +34,18 @@ UnitVelocity_in_cm_per_s 	1e5                %  1 km/sec
 %% here some more merger parameters can be set by hand
 
 % cluster 0
-c_nfw_0     4
-v_com_0     0
-rc_0        30
+c_nfw_0           4
+v_com_0           0
+rc_0              30
+bf_0              0.17
+rcut_r200_ratio_0 1.6
 
 % cluster 1
-c_nfw_1    4.089
-v_com_1     0
-rc_1        300
+c_nfw_1           4.089
+v_com_1           0
+rc_1              300
+bf_1              0.17
+rcut_r200_ratio_1 1.6
 
 %% -DADD_THIRD_SUBHALO Options
 

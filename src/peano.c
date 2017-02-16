@@ -1,13 +1,13 @@
 #include "globals.h"
 #include "peano.h"
-#include "sort.h"
+#include <gsl/gsl_heapsort.h>
 
 
 static void print_int_bits128(const peanoKey val)
 {
 	for (int i = 127; i >= 0; i--) {
 		
-		printf("%llu", (val & ((peanoKey)1 << i) ) >> i);
+		printf("%llu", (unsigned long long) (val & ((peanoKey)1 << i) ) >> i);
 		
 		if (i % 3 == 0 && i != 0)
 			printf(".");
@@ -20,7 +20,7 @@ static void print_int_bits128r(const peanoKey val)
 {
 	for (int i = 127; i >= 0; i--) {
 		
-		printf("%llu", (val & ((peanoKey)1 << i) ) >> i);
+		printf("%llu", (unsigned long long) (val & ((peanoKey)1 << i) ) >> i);
 		
 		if (i % 3-2 == 0 && i != 0)
 			printf(".");
@@ -45,10 +45,7 @@ static void reorder_particles();
 
 void Sort_Particles_By_Peano_Key()
 {
-	//printf("Peano Order ... "); fflush(stdout);
-
-	const double box = Param.Boxsize;
-	const double boxhalf = Param.Boxsize / 2;
+	const double boxsize = Param.Boxsize;
 	
 	if (Keys == NULL)
 		Keys = malloc(Param.Npart[0] * sizeof(*Keys));
@@ -63,20 +60,18 @@ void Sort_Particles_By_Peano_Key()
 	#pragma omp parallel for
 	for (int ipart = 0; ipart < Param.Npart[0]; ipart++) {
 
-		double px = (P[ipart].Pos[0] ) / box;
-		double py = (P[ipart].Pos[1]) / box;
-		double pz = (P[ipart].Pos[2]) / box;
+		double px = P[ipart].Pos[0] / boxsize;
+		double py = P[ipart].Pos[1] / boxsize;
+		double pz = P[ipart].Pos[2] / boxsize;
 		
 		P[ipart].Key = Keys[ipart] = Peano_Key(px, py, pz);
 	}
 
-	#pragma omp parallel
-	Qsort_Index(Omp.NThreads, Idx, Keys, Param.Npart[0], sizeof(*Keys), 
-			&compare_peanoKeys);
+  	gsl_heapsort_index(Idx, Keys, Param.Npart[0], sizeof(*Keys), 
+						&compare_peanoKeys);
 
 	reorder_particles();
 	
-	//printf("done \n");fflush(stdout);
 	return ;
 }
 
@@ -84,8 +79,6 @@ void Sort_Particles_By_Peano_Key()
 
 static void reorder_particles()
 {
-	//printf("Memove ... "); fflush(stdout);
-
 	for (int i = 0; i < Param.Npart[0]; i++) {
 	
         if (Idx[i] == i)
@@ -120,8 +113,6 @@ static void reorder_particles()
 
     } // for i
 
-	//printf("done \n"); fflush(stdout);
-	
 	return ;
 }
 
@@ -304,7 +295,7 @@ void test_peanokey()
 
 		peanoKey stdkey =  Peano_Key(a[0], a[1], a[2]);
 
-		printf("%g %g %g %llu  \n", a[0], a[1], a[2], stdkey );
+		printf("%g %g %g %llu  \n", a[0], a[1], a[2], (unsigned long long) stdkey );
 
 		print_int_bits128(stdkey);
 

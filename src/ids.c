@@ -20,7 +20,7 @@ void Make_IDs()
 			break;
 	
 
-	printf("\nID spacing is %d \n", delta);fflush(stdout);
+	printf("\nID spacing is %zu \n", delta);fflush(stdout);
 
 	int id = 1 - delta, start = 1;
 	

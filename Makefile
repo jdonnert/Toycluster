@@ -5,8 +5,6 @@
 
 SHELL = /bin/bash
 
-OPT += -DRCUT_R200_RATIO=1.7 # large val make cluster unstable, use with care
-
 #OPT += -DPARABOLA       # merge in a parabola
 OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 						 # if nothing is selected, merge as ball with R_Sample
@@ -16,9 +14,9 @@ OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 #OPT	+= -DNO_RCUT_IN_T	 # set Rcut very large in U calculation
 
 #
-#OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
-#OPT += -DSUBHOST=1			 # host subhalos in this cluster
-#OPT += -DSLOW_SUBSTRUCTURE	 # put subhalos on Hernquist orbits
+OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
+OPT += -DSUBHOST=0			 # host subhalos in this cluster
+OPT += -DSLOW_SUBSTRUCTURE	 # put subhalos on Hernquist orbits
 #OPT += -DREPORTSUBHALOS	 # print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel

@@ -1,6 +1,6 @@
 #include "globals.h"
 
-#define NODES_PER_PARTICLE 0.7
+#define NODES_PER_PARTICLE 2.5
 
 struct Tree_Node {
 	uint32_t Bitfield; 	// bit 0-5:level, 6-8:key, 9:local, 10:top, 11-31:free
@@ -40,18 +40,12 @@ int Find_ngb_tree(const int ipart, const float hsml, int ngblist[NGBMAX])
 			
         if (dx > boxhalf)
 	 	  	dx -= boxsize;
-		else if (dx < -boxhalf)
-		    dx += boxsize;
-
+		
         if (dy > boxhalf)
 	 	  	dy -= boxsize;
-		else if (dy < -boxhalf)
-		    dy += boxsize;
-
+		
         if (dz > boxhalf)
 	 	  	dz -= boxsize;
-		else if (dz < -boxhalf)
-		    dz += boxsize;
 
 		float dl = 0.5 * sqrt3 * Tree[node].Size + hsml;
 		
@@ -70,18 +64,12 @@ int Find_ngb_tree(const int ipart, const float hsml, int ngblist[NGBMAX])
 
         			if (dx > boxhalf)
 				 	  	dx -= boxsize;
-					else if (dx < -boxhalf)
-					    dx += boxsize;
 
 	        		if (dy > boxhalf)
 				 	  	dy -= boxsize;
-					else if (dy < -boxhalf)
-					    dy += boxsize;
 
 			        if (dz > boxhalf)
 	 	  				dz -= boxsize;
-					else if (dz < -boxhalf)
-		    			dz += boxsize;
 
 					float dl = 0.5 * sqrt3 * Tree[node].Size + hsml;
 
@@ -126,17 +114,16 @@ void Build_Tree()
 	gravity_tree_init();
 	
 	const double boxsize = Param.Boxsize;
-	const double boxhalf = Param.Boxsize/2;
 
-	create_node_from_particle(0, 0, 0, 0, &NNodes); // first 
+	create_node_from_particle(0, 0, 0, 0, &NNodes); // root node 
 
-	Tree[0].Pos[0] = Tree[0].Pos[1] = Tree[0].Pos[2] = boxhalf;
+	Tree[0].Pos[0] = Tree[0].Pos[1] = Tree[0].Pos[2] = boxsize/2;
 
-	int last_parent = 0;		// last parent of last particle
+	int last_parent = 0; // last parent of last particle
 
-	float px = P[0].Pos[0] / boxsize;
-	float py = P[0].Pos[1] / boxsize;
-	float pz = P[0].Pos[2] / boxsize;
+	double px = P[0].Pos[0]/boxsize;
+	double py = P[0].Pos[1]/boxsize;
+	double pz = P[0].Pos[2]/boxsize;
 		
 	peanoKey last_key = Reversed_Peano_Key(px, py, pz);
 	
@@ -144,23 +131,21 @@ void Build_Tree()
 
 	for (int ipart = 1; ipart < Param.Npart[0]; ipart++) {
 
-		double px = (P[ipart].Pos[0])/boxsize; 	
-		double py = (P[ipart].Pos[1])/boxsize; 
-		double pz = (P[ipart].Pos[2])/boxsize; 
+		double px = P[ipart].Pos[0]/boxsize; 	
+		double py = P[ipart].Pos[1]/boxsize; 
+		double pz = P[ipart].Pos[2]/boxsize; 
 		
 		peanoKey key = Reversed_Peano_Key(px, py, pz);
 
-		int node = 0; //+1		// current node
-		int lvl = 0;	//+1		// counts current level
-		int parent = 0;			// parent of current node
+		int node = 0; // current node
+		int lvl = 0; // counts current level
+		int parent = 0; // parent of current node
 
-		bool ipart_starts_new_branch = true; // flag to remove leaf nodes
-		
 		while (lvl < N_PEANO_TRIPLETS) {
 			
 			if (particle_is_inside_node(key, lvl, node)) { // open node	
 				
-				if (Tree[node].Npart == 1) { 	// refine 
+				if (Tree[node].Npart == 1) { // refine 
 	
 					Tree[node].DNext = 0;		
 
@@ -171,8 +156,6 @@ void Build_Tree()
 				}  
 				
 				add_particle_to_node(ipart, node); // add ipart to node
-
-				ipart_starts_new_branch &= (node != last_parent);
 
 				parent = node;
 
@@ -198,33 +181,6 @@ void Build_Tree()
 			continue; 					// tree cannot be deeper
 		}
 
-		if (ipart_starts_new_branch) { // collapse particle leaf nodes
-			
-			int n = 0; 
-
-			if (Tree[node].Npart <= 8) 
-				n = node;			
-			else if (Tree[last_parent].Npart <= 8) 
-				n = last_parent;
-			
-			if (n != 0) {
-
-				Tree[n].DNext = -ipart + Tree[n].Npart - 1;
-					
-				int nZero = NNodes - n - 1;
-
-				NNodes = n + 1;
-
-				memset(&Tree[NNodes], 0, nZero*sizeof(*Tree));
-
-				int first = -(Tree[n].DNext + 1);
-				int last = first + Tree[n].Npart;
-
-				for (int jpart = first; jpart < last; jpart++)
-					P[jpart].Tree_Parent = n;
-			}	
-		}
-		
 		if (Tree[node].DNext == 0) 				// set DNext for internal node
 			Tree[node].DNext = NNodes - node; 	// only delta
 			
@@ -265,8 +221,6 @@ void Build_Tree()
 		
 	} // for
 
-	//printf("done \n");
-
 	return ;
 }
 
@@ -284,12 +238,7 @@ static inline void create_node_from_particle(const int ipart,const int parent,
 {
 	const int node = (*NNodes)++;
 
-	if (*NNodes >= Max_Nodes) {
-
-		printf("Too many nodes ! \n");
-	
-		exit(0);
-	}
+	Assert(*NNodes < Max_Nodes, "Too many tree nodes %d \n", Max_Nodes);
 
 	Tree[node].DNext = -ipart - 1;
 
@@ -346,10 +295,6 @@ void gravity_tree_init()
 		Tree = malloc(nBytes);
 	
 	memset(Tree, 0, nBytes);
-
-//	printf("\n   Tree Build istart=%d npart=%d maxnodes=%d ",  
-//			Omp.ThreadID, Param.Npart[0], Max_Nodes);
-//	fflush(stdout);
 
 	NNodes = 0;
 

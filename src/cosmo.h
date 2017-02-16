@@ -1,15 +1,15 @@
 /* cosmology */
 extern struct Universe{
-    double Baryon_Fraction;
+    // double Baryon_Fraction;  // Moved to Halo
     double h_100;
-	double Omega_M;
-	double Omega_L;
-	double Omega_0;
-	double K;
+    double Omega_M;
+    double Omega_L;
+    double Omega_0;
+    double K;
     double H0_cgs;
-	double Overdensity_Parameter;	// Delta200 at cluster redshift
+    double Overdensity_Parameter;    // Delta200 at cluster redshift
     double Rho_crit0;
-	double (*a2t)(double);
+    double (*a2t)(double);
 } Cosmo;
 
 double Overdensity_Parameter();

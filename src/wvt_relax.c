@@ -1,14 +1,9 @@
 #include "globals.h"
 #include "tree.h"
 
-#define WVTNNGB DESNNGB // 145 for WC2 that equals WC6
-
-#define TREEBUILDFREQUENCY 1
-#define NUMITER 64
-#define ERRDIFF_LIMIT 0.01
+#define WVTNNGB DESNNGB // 145 for WC2 that equals WC6 with 295
 
 int Find_ngb_simple(const int ipart,  const float hsml, int *ngblist);
-int ngblist[NGBMAX] = { 0 }, Ngbcnt ;
 
 static float global_density_model(const int ipart);
 static inline float sph_kernel_M4(const float r, const float h);
@@ -19,86 +14,55 @@ static inline float gravity_kernel(const float r, const float h);
 /* Settle SPH particle with weighted Voronoi tesselations (Diehl+ 2012).
  * Here hsml is not the SPH smoothing length, but is related to a local 
  * metric defined ultimately by the density model.
- * Relaxation is done in units of the boxsize, hence the box volume is 1 */
+ * Relaxation is done in units of the boxsize, hence the box volume is 1 
+ * We do not stop on the SPH sampling error, but on the distribution of particle
+ * displacements relative to the local mean particle density. This is because 
+ * the minimum energy state does not coincide with the lowest sampling error. */
 
 void Regularise_sph_particles()
 {
+	const int maxiter = 1024;
+	const double mps_frac = 5; 		// move this fraction of the mean particle sep
+	const double step_red = 0.95; 	// force convergence at this rate
+	const double bin_limits[3] = { -1, 5, -1 }; // displacement limits in 100%, 10%, 1%
+
     const int nPart = Param.Npart[0];
     const double boxsize = Param.Boxsize;
-    const double boxinv = 1/boxsize;
 
     printf("Starting iterative SPH regularisation \n"
-			"   max %d iterations, tree update every %d iterations\n"
-			"   stop at  errmax < %g%%   \n\n",
-			NUMITER, TREEBUILDFREQUENCY, ERRDIFF_LIMIT*100); fflush(stdout);
+			"   max %d iterations, mpsfrac=%g, force convergence at %g \n"
+			"   bin limits: %g %g %g\n",
+			maxiter, mps_frac, step_red, bin_limits[0], bin_limits[1], bin_limits[2]); 
+	fflush(stdout);
 
     float *hsml = NULL;
-    size_t nBytes = nPart * sizeof(*hsml);
-    hsml = Malloc(nBytes);
+    hsml = Malloc(nPart * sizeof(*hsml));
     
-    float *delta[3] = { NULL }; 
-    nBytes = nPart * sizeof(**delta);
-    delta[0] = Malloc(nBytes);
-    delta[1] = Malloc(nBytes);
-    delta[2] = Malloc(nBytes);
+    float *displ[3] = { NULL }; 
+   
+    displ[0] = Malloc(nPart * sizeof(**displ));
+    displ[1] = Malloc(nPart * sizeof(**displ));
+    displ[2] = Malloc(nPart * sizeof(**displ));
 
 	double rho_mean = nPart * Param.Mpart[0] / p3(boxsize);
-	double step_mean = boxsize/pow(nPart, 1.0/3.0) / 3;
-
-#ifdef SPH_CUBIC_SPLINE
-	double step_mean *= 2;
-#endif
+	double step_mean = boxsize/pow(nPart, 1.0/3.0) / mps_frac;
 
 	double errLast = DBL_MAX, errLastTree = DBL_MAX;
-	double errDiff = DBL_MAX, errDiffLast = DBL_MAX;
+	double errDiff = DBL_MAX;
+
+	double last_cnt = DBL_MAX;
 
     int it = -1;
 
-    for (;;) {
-   
-		if (it++ >= NUMITER) 
-			break;
-		
-        if ((it % TREEBUILDFREQUENCY) == 0) 
-			Find_sph_quantities();
-		
-		int nIn = 0;
+    while (it++ < maxiter) {
+			
+		Sort_Particles_By_Peano_Key();	
+	
+		Build_Tree();	
 
-        double  errMax = 0, errMean = 0; 
+		Find_sph_quantities();
 
-		#pragma omp parallel for reduction(+:errMean,nIn) reduction(max:errMax)
-        for (int  ipart = 0; ipart < nPart; ipart++) { // get error
-
-        	float rho = global_density_model(ipart);
-
-            float err = fabs(SphP[ipart].Rho-rho) / rho;
-
-            errMax = fmax(err, errMax);
-
-            errMean += err;
-
-			nIn++;
-        }
-
-        errMean /= nIn;
-
-		errDiff = (errLast - errMean) / errMean;
-
-       	printf("   #%02d: Err max=%3g mean=%03g diff=%03g step_mean=%g\n", 
-				it, errMax, errMean,errDiff, step_mean); 
-
-		if (errDiff < ERRDIFF_LIMIT && it > 16)
-			break;
-
-		if ((errDiff < 0) && (errDiffLast < 0) && (it > 2)) // stop if worse
-			break;
-
-		if (errDiff < 0.01 && (it > 2)) // force convergence
-			step_mean *= 0.9;
-
-		errLast = errMean;
-		errDiffLast = errDiff;
-
+	
         double vSphSum = 0; // total volume defined by hsml
  
 		#pragma omp parallel for shared(hsml) reduction(+:vSphSum)
@@ -119,17 +83,16 @@ void Regularise_sph_particles()
         for (int ipart = 0; ipart < nPart; ipart++) 
             hsml[ipart] *= norm_hsml;
 
-		#pragma omp parallel for shared(delta, hsml, P) \
-			schedule(dynamic, nPart/Omp.NThreads/256)
+		#pragma omp parallel for shared(displ, hsml, P) schedule(dynamic, nPart/Omp.NThreads/256)
         for (int ipart = 0; ipart < nPart; ipart++) { 
 
-            delta[0][ipart] = delta[1][ipart] = delta[2][ipart] = 0;
+            displ[0][ipart] = displ[1][ipart] = displ[2][ipart] = 0;
 
             int ngblist[NGBMAX] = { 0 };
 
             //int ngbcnt = Find_ngb_simple(ipart, hsml[ipart]*boxsize, ngblist);
             int ngbcnt = Find_ngb_tree(ipart, hsml[ipart]*boxsize, ngblist);
-			
+
 			for (int i = 0; i < ngbcnt; i++) { // neighbour loop
 
 				int jpart = ngblist[i];
@@ -137,9 +100,9 @@ void Regularise_sph_particles()
                 if (ipart == jpart)
                     continue;
 
-                float dx = (P[ipart].Pos[0] - P[jpart].Pos[0]) * boxinv;
-	    		float dy = (P[ipart].Pos[1] - P[jpart].Pos[1]) * boxinv;
-    		    float dz = (P[ipart].Pos[2] - P[jpart].Pos[2]) * boxinv;
+                float dx = (P[ipart].Pos[0] - P[jpart].Pos[0])/boxsize;
+	    		float dy = (P[ipart].Pos[1] - P[jpart].Pos[1])/boxsize;
+    		    float dz = (P[ipart].Pos[2] - P[jpart].Pos[2])/boxsize;
 			
                 dx = dx > 0.5 ? dx-1 : dx; // find closest image
                 dy = dy > 0.5 ? dy-1 : dy;
@@ -165,18 +128,34 @@ void Regularise_sph_particles()
 				double dens_contrast = pow(SphP[ipart].Rho_Model/rho_mean, 1/3);
 				double step = step_mean / dens_contrast;
 				
-				delta[0][ipart] += step * hsml[ipart] * wk * dx/r;
-                delta[1][ipart] += step * hsml[ipart] * wk * dy/r;
-                delta[2][ipart] += step * hsml[ipart] * wk * dz/r;
+				displ[0][ipart] += step * hsml[ipart] * wk * dx/r;
+                displ[1][ipart] += step * hsml[ipart] * wk * dy/r;
+                displ[2][ipart] += step * hsml[ipart] * wk * dz/r;
             }
         }
 
-		#pragma omp parallel for
+        int cnt_100 = 0, cnt_10 = 0, cnt_1 ;
+
+		#pragma omp parallel for reduction(+:cnt_100,cnt_10,cnt_1)
         for (int ipart = 0; ipart < nPart; ipart++) { // move particles
 
-            P[ipart].Pos[0] += delta[0][ipart];
-            P[ipart].Pos[1] += delta[1][ipart];
-            P[ipart].Pos[2] += delta[2][ipart];
+			float rho = global_density_model(ipart);
+
+            float d = sqrt(p2(displ[0][ipart])
+                    + p2( displ[1][ipart]) + p2( displ[2][ipart]));
+
+            float d_mps = pow(Param.Mpart[0] / rho / DESNNGB, 1.0/3.0);
+
+            if (d > 1 * d_mps) // simple distribution function of displs
+                cnt_100++;
+            if (d > 0.1 * d_mps)
+                cnt_10++;
+            if (d > 0.01 * d_mps)
+                cnt_1++;
+
+            P[ipart].Pos[0] += displ[0][ipart];
+            P[ipart].Pos[1] += displ[1][ipart];
+            P[ipart].Pos[2] += displ[2][ipart];
 
             while (P[ipart].Pos[0] < 0) // keep it in the box
                 P[ipart].Pos[0] += boxsize;
@@ -196,9 +175,49 @@ void Regularise_sph_particles()
             while (P[ipart].Pos[2] > boxsize)
                 P[ipart].Pos[2] -= boxsize;
         }
+	
+		int nIn = 0;
+
+        double  errMax = 0, errMean = 0; 
+
+		#pragma omp parallel for reduction(+:errMean,nIn) reduction(max:errMax)
+        for (int  ipart = 0; ipart < nPart; ipart++) { // get error
+
+        	float rho = global_density_model(ipart);
+
+            float err = fabs(SphP[ipart].Rho-rho) / rho;
+
+            errMax = fmax(err, errMax);
+
+            errMean += err;
+
+			nIn++;
+        }
+
+        errMean /= nIn;
+
+		errDiff = (errLast - errMean) / errMean;
+
+		printf("   #%04d: Delta %g%% > 1; %g%% > 1/10; %g%% > 1/100 of d_mps\n" 
+			   "          Error max=%3g; mean=%03g; diff=%03g step_mean=%g\n",
+				it, cnt_100*100./nPart, cnt_10 *100.0/nPart, cnt_1 *100.0/nPart, 
+				errMax, errMean,errDiff, step_mean); 
+
+		errLast = errMean;
+
+		if ((cnt_100*100./nPart < bin_limits[0]) ||
+			(cnt_10*100./nPart  < bin_limits[1]) ||
+			(cnt_1*100./nPart   < bin_limits[2]) )
+				break;
+	
+
+		if (cnt_10 > last_cnt)  // force convergence if distribution doesnt tighten
+            step_mean *= step_red;
+
+		last_cnt = cnt_10;
     }
 
-    Free(hsml); Free(delta[0]); Free(delta[1]); Free(delta[2]);
+    Free(hsml); Free(displ[0]); Free(displ[1]); Free(displ[2]);
 
     printf("\ndone\n\n"); fflush(stdout);
     

@@ -365,11 +365,11 @@ void Read_param_file(char *filename)
     id[nt++] = REAL;
 
     strcpy(tag[nt], "rcut_r200_ratio_0");
-    addr[nt] = &Halo[0].rcut_r200_ratio;
+    addr[nt] = &Halo[0].Rcut_R200_Ratio;
     id[nt++] = REAL;
 
     strcpy(tag[nt], "rcut_r200_ratio_1");
-    addr[nt] = &Halo[1].rcut_r200_ratio;
+    addr[nt] = &Halo[1].Rcut_R200_Ratio;
     id[nt++] = REAL;
 
     /* System of Units */

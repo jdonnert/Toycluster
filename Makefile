@@ -14,9 +14,9 @@ OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 #OPT	+= -DNO_RCUT_IN_T	 # set Rcut very large in U calculation
 
 #
-OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
-OPT += -DSUBHOST=0			 # host subhalos in this cluster
-OPT += -DSLOW_SUBSTRUCTURE	 # put subhalos on Hernquist orbits
+#OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
+#OPT += -DSUBHOST=0			 # host subhalos in this cluster
+#OPT += -DSLOW_SUBSTRUCTURE	 # put subhalos on Hernquist orbits
 #OPT += -DREPORTSUBHALOS	 # print info about all subhaloes
 
 #OPT += -DADD_THIRD_SUBHALO  # manually set the first subhalo mass, pos, vel
@@ -48,7 +48,7 @@ endif
 
 ifeq ($(SYSTYPE),MSI)
 CC      	= icc
-OPTIMIZE	= -Wall -g  -O3 -xhost -ipo4
+OPTIMIZE	= -Wall -g  -O3 -xhost
 GSL_INCL 	= -I/home/jonestw/donne219/Libs/$(shell hostname)/include
 GSL_LIBS	= -L/home/jonestw/donne219/Libs/$(shell hostname)/lib
 endif

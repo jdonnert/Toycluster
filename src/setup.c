@@ -55,7 +55,7 @@ void Setup()
 
         Halo[i].R_Sample[0] = Halo[i].R200 * R200_RSAMPLE_RATIO;
         Halo[i].R_Sample[1] = Halo[i].R200 * R200_RSAMPLE_RATIO;
-        Halo[i].Rcut = Halo[i].rcut_r200_ratio * Halo[i].R200;
+        Halo[i].Rcut = Halo[i].Rcut_R200_Ratio * Halo[i].R200;
 
         if (i == 0) { // 0 provides a background
 

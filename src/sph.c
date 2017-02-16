@@ -12,10 +12,6 @@ static inline float sph_kernel_derivative_WC6(const float r, const float h);
 
 extern void Find_sph_quantities() 
 {
-	Sort_Particles_By_Peano_Key();	
-	
-	Build_Tree();	
-
 	#pragma omp parallel for shared(SphP, P) \
         schedule(dynamic, Param.Npart[0]/Omp.NThreads/64)
     for (size_t ipart = 0; ipart<Param.Npart[0]; ipart++) {  

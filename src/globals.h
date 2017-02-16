@@ -151,7 +151,7 @@ extern struct HaloProperties {
     double Rho0;                    // Density normalisation
     double Beta;                    // Beta-model exponent
     double bf;                      // Halo-specific Baryon fraction
-    double rcut_r200_ratio;         // Halo-specific rcut-to-r200 ratio
+    double Rcut_R200_Ratio;         // Halo-specific rcut-to-r200 ratio
     double Rcore;                   // Beta-model core radius
     double Bf_eff;                  // Effective Baryon Fraction in r500
     double D_CoM[3];                // Distance from Center of Mass in x

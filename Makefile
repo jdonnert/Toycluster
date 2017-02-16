@@ -13,7 +13,7 @@ OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 
 #OPT 	+= -DGIVEPARAMS		 # set beta models in parameter file
 
-OPT	+= -DNO_RCUT_IN_T	 # set Rcut very large in U calculation
+#OPT	+= -DNO_RCUT_IN_T	 # set Rcut very large in U calculation
 
 #
 #OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
@@ -66,7 +66,7 @@ endif
 
 ## TARGET ##
 
-EXEC = Toycluster_Hot
+EXEC = Toycluster
 
 ## FILES ##
 

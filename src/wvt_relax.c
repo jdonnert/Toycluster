@@ -29,6 +29,8 @@ void Regularise_sph_particles()
     const int nPart = Param.Npart[0];
     const double boxsize = Param.Boxsize;
 
+	const double npart2percent = 100.0/nPart;
+
     printf("Starting iterative SPH regularisation \n"
 			"   max %d iterations, mpsfrac=%g, force convergence at %g \n"
 			"   bin limits: %g %g %g\n",
@@ -54,14 +56,13 @@ void Regularise_sph_particles()
 
     int it = -1;
 
-    while (it++ < maxiter) {
+    for (;;) {
 			
 		Sort_Particles_By_Peano_Key();	
 	
 		Build_Tree();	
 
 		Find_sph_quantities();
-
 	
         double vSphSum = 0; // total volume defined by hsml
  
@@ -134,7 +135,7 @@ void Regularise_sph_particles()
             }
         }
 
-        int cnt_100 = 0, cnt_10 = 0, cnt_1 ;
+        int cnt_100 = 0, cnt_10 = 0, cnt_1 = 0 ;
 
 		#pragma omp parallel for reduction(+:cnt_100,cnt_10,cnt_1)
         for (int ipart = 0; ipart < nPart; ipart++) { // move particles
@@ -198,23 +199,27 @@ void Regularise_sph_particles()
 
 		errDiff = (errLast - errMean) / errMean;
 
-		printf("   #%04d: Delta %g%% > 1; %g%% > 1/10; %g%% > 1/100 of d_mps\n" 
+		double bins[3] = { cnt_100*npart2percent, cnt_10*npart2percent, cnt_1*npart2percent };
+
+		printf("   #%04d: Delta %4g%% > 1; %4g%% > 1/10; %4g%% > 1/100 of d_mps\n" 
 			   "          Error max=%3g; mean=%03g; diff=%03g step_mean=%g\n",
-				it, cnt_100*100./nPart, cnt_10 *100.0/nPart, cnt_1 *100.0/nPart, 
+				it, bins[0], bins[1], bins[2], 
 				errMax, errMean,errDiff, step_mean); 
 
 		errLast = errMean;
-
-		if ((cnt_100*100./nPart < bin_limits[0]) ||
-			(cnt_10*100./nPart  < bin_limits[1]) ||
-			(cnt_1*100./nPart   < bin_limits[2]) )
-				break;
-	
 
 		if (cnt_10 > last_cnt)  // force convergence if distribution doesnt tighten
             step_mean *= step_red;
 
 		last_cnt = cnt_10;
+
+		if ((bins[0] < bin_limits[0]) ||
+			(bins[1] < bin_limits[1]) ||
+			(bins[2] < bin_limits[2]) )
+				break;
+
+		if (it++ >= maxiter)
+			break;
     }
 
     Free(hsml); Free(displ[0]); Free(displ[1]); Free(displ[2]);

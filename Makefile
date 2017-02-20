@@ -11,11 +11,8 @@ OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 
 #OPT 	+= -DGIVEPARAMS		 # set beta models in parameter file
 
-#OPT	+= -DNO_RCUT_IN_T	 # set Rcut very large in U calculation
-
-#
 #OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
-#OPT += -DSUBHOST=0			 # host subhalos in this cluster
+#OPT += -DSUBHOST=1			 # host subhalos in this cluster
 #OPT += -DSLOW_SUBSTRUCTURE	 # put subhalos on Hernquist orbits
 #OPT += -DREPORTSUBHALOS	 # print info about all subhaloes
 

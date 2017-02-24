@@ -40,7 +40,7 @@ void Setup_Substructure()
     set_subhalo_masses(Sub.MassFraction);
 
     for (int i = Sub.First; i < Param.Nhalos; i++) {
-
+	
         printf("."); fflush(stdout);
 
         do {
@@ -194,14 +194,16 @@ static void set_subhalo_positions(int i)
 
     double q = erand48(Omp.Seed);
 
-    double r = 1.5* Halo[SUBHOST].R200 * inverted_subhalo_number_density_profile(q);
+	double x = 0, y = 0, z = 0;
 
-    float theta = acos(2 *  erand48(Omp.Seed) - 1);
-       float phi = 2*pi * erand48(Omp.Seed);
+    double r = 3 * Halo[SUBHOST].R200 * inverted_subhalo_number_density_profile(q);
 
-    double x = r * sin(theta) * cos(phi);
-    double y = r * sin(theta) * sin(phi);
-    double z = r * cos(theta);
+	float theta = acos(2 *  erand48(Omp.Seed) - 1);
+    float phi = 2*pi * erand48(Omp.Seed);
+
+    x = r * sin(theta) * cos(phi);
+    y = r * sin(theta) * sin(phi);
+    z = r * cos(theta);
 
 #ifdef ADD_THIRD_SUBHALO
     if (i == Sub.First) {
@@ -253,7 +255,13 @@ static bool reject_subhalo(const int i)
     if (rho_sub < rho_host*MIN_DENSITY_CONTRAST)
         resample = true;
 
-    if (r > 0.8 * Halo[SUBHOST].R200)
+    if (r > 3 * Halo[SUBHOST].R200)
+        resample = true;
+
+	if (SUBHOST == 1 && Halo[i].D_CoM[0] < 0)
+        resample = true;
+
+	if (SUBHOST == 0 && Halo[i].D_CoM[0] > 0)
         resample = true;
 
 #ifdef ADD_THIRD_SUBHALO
@@ -272,6 +280,8 @@ static bool reject_subhalo(const int i)
 
 static void set_subhalo_properties(const int i)
 {
+	Halo[i].bf = 0.17;
+
     double dx = Halo[SUBHOST].D_CoM[0] - Halo[i].D_CoM[0];
     double dy = Halo[SUBHOST].D_CoM[1] - Halo[i].D_CoM[1];
     double dz = Halo[SUBHOST].D_CoM[2] - Halo[i].D_CoM[2];

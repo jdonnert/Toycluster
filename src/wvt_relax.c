@@ -21,7 +21,7 @@ static inline float gravity_kernel(const float r, const float h);
 
 void Regularise_sph_particles()
 {
-	const int maxiter = 1024;
+	const int maxiter = 128;
 	const double mps_frac = 5; 		// move this fraction of the mean particle sep
 	const double step_red = 0.95; 	// force convergence at this rate
 	const double bin_limits[3] = { -1, 5, -1 }; // displacement limits in 100%, 10%, 1%
@@ -203,8 +203,7 @@ void Regularise_sph_particles()
 
 		printf("   #%04d: Delta %4g%% > 1; %4g%% > 1/10; %4g%% > 1/100 of d_mps\n" 
 			   "          Error max=%3g; mean=%03g; diff=%03g step_mean=%g\n",
-				it, bins[0], bins[1], bins[2], 
-				errMax, errMean,errDiff, step_mean); 
+				it, bins[0], bins[1], bins[2], errMax, errMean,errDiff, step_mean); 
 
 		errLast = errMean;
 

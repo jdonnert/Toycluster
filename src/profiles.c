@@ -804,9 +804,9 @@ static void setup_dm_distribution_function(const int iCluster)
         int_params.E = E[i];
 
         double Emax = E[i];
-        double Emin = Emax / 512; // ~= 0, all of the integrant is close to Emax
+        double Emin = Emax / 1024; // ~= 0, all of the integrant is close to Emax
 
-        gsl_integration_qags(&F, Emin, Emax, 0, 1e-4, NSAMPLE, w, &fE[i], &err);
+        gsl_integration_qags(&F, Emin, Emax, 0, 1e-3, NSAMPLE, w, &fE[i], &err);
 
         fE[i] /= sqrt8 * pi * pi;
 

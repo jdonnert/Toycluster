@@ -1,6 +1,6 @@
 # Toycluster
 
-Idealized Cluster Mergers for Gadget (Donnert 2014)
+SPH initial conditions for idealized Cluster Mergers using weighted Voronoi Tesselations (Donnert 2014)
 
 	* Physical model from Donnert 2014
 	* Simple OpenMP Tree for neighbour finding with WC6

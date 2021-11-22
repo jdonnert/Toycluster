@@ -45,6 +45,7 @@ void Wvt_relax();
 void Shift_particles();
 void Write_output();
 void Bfld_from_rotA_SPH();
+void Bfld_from_turb_spectrum();
 void Shift_Origin();
 void Regularise_sph_particles();
 void Show_mass_in_r200();

@@ -456,6 +456,16 @@ void Read_param_file(char *filename)
     id[nt++] = REAL;
 #endif
 
+#ifdef TURB_B_FIELD
+    strcpy(tag[nt], "Bfld_Scale");
+    addr[nt] = &Param.Bfld_Scale;
+    id[nt++] = REAL;
+
+    strcpy(tag[nt], "Turb_Spectral_Index");
+    addr[nt] = &Param.Spectral_Index;
+    id[nt++] = REAL;
+#endif
+
     /* Add above */
     id[nt] = LASTPARAMETERID;
 

@@ -5,13 +5,13 @@ Output_file IC_single_0
 Ntotal      100000         % Total Number of Particles in R200
 Mtotal      1e5             % Total Mass in Code Units
 
-Mass_Ratio  0          % set =0 for single cluster
+Mass_Ratio  1.2          % set =0 for single cluster
 
 ImpactParam 50
 
 Redshift	0.188
 
-ZeroEOrbitFrac 0            % in [0,1]
+ZeroEOrbitFrac 0.5            % in [0,1]
 
 Cuspy       0               % Bitfield, use cool core  model (rc /= 9)
 
@@ -24,7 +24,7 @@ bf_1        0.17            % bf = 17% ~> 14% in r500, Vikhlinin+ 2006
 rcut_r200_ratio_0 1.7       % ICM cutoff radius, Perseus 1.7
 rcut_r200_ratio_1 1.7       % influence Temp at r > 500 kpc
 
-Bfld_Norm   45e-6           % B(r) = B0 * normalised_density^eta
+Bfld_Norm   4e-6           % B(r) = B0 * normalised_density^eta
 Bfld_Eta    0.5             % like Bonafede 2010. B0 /=2 if Mtotal<5d4
 
 h_100       0.7             % Hubble/100
@@ -63,4 +63,8 @@ SubFirstVel2 0
 
 Rho0_Fac	50	% increase in Rho0
 Rc_Fac		40	% decrease in Rcore
+
+%% TURB_B_FIELD Options
+Bfld_Scale            100.0      % smallest scale of turb B-field 
+Turb_Spectral_Index  -3.66   % Spectral Index of turbulence spectrum
 

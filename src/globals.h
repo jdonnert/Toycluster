@@ -23,6 +23,10 @@
 #include <gsl/gsl_const_num.h>
 #include <gsl/gsl_rng.h>
 
+/* FFTW3 */
+#include <complex.h>
+#include <fftw3.h>
+
 #include <omp.h>
 
 /* Global Prototypes */
@@ -87,6 +91,7 @@
 #define mean_mol_weight (1.0+4.0*yHelium)/(1.0+3.0*yHelium+1.0)
 #define adiabatic_index (5./3.)
 
+
 extern struct OpenMP_infos{
     int NThreads;          // Number of openMP threads
     int ThreadID;          // Thread ID of this thread
@@ -120,6 +125,10 @@ extern struct Parameters{
 #ifdef DOUBLE_BETA_COOL_CORES
     double Rho0_Fac;
     double Rc_Fac;
+#endif
+#ifdef TURB_B_FIELD
+    double Bfld_Scale;
+    double Spectral_Index;
 #endif
 } Param;
 

@@ -9,10 +9,10 @@ SHELL = /bin/bash
 OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 						 # if nothing is selected, merge as ball with R_Sample
 
-#OPT 	+= -DGIVEPARAMS		 # set beta models in parameter file
+OPT 	+= -DGIVEPARAMS		 # set beta models in parameter file
 
 #OPT += -DSUBSTRUCTURE		 # add a population of galaxy-like subhalos
-#OPT += -DSUBHOST=1			 # host subhalos in this cluster
+#OPT += -DSUBHOST=0			 # host subhalos in this cluster
 #OPT += -DSLOW_SUBSTRUCTURE	 # put subhalos on Hernquist orbits
 #OPT += -DREPORTSUBHALOS	 # print info about all subhaloes
 
@@ -25,6 +25,8 @@ OPT	+= -DCOMET			 # merge like a comet, ball+tail (recommended)
 
 OPT 	+= -DNFWC_DUFFY08	 # alternate fit to concentr. param
 
+OPT     += -DTURB_B_FIELD    # set up a turbulent Bfield instead of a vector potential
+
 ## Target Computer ##
 ifndef SYSTYPE
 SYSTYPE := $(shell hostname)
@@ -35,6 +37,15 @@ CC       = gcc
 OPTIMIZE = -Wall -g -O2
 GSL_INCL = $(CPPFLAGS)
 GSL_LIBS = $(LDFLAGS)
+FFTW_LIBS 	= 
+FFTW_INCL 	= -lfftw3
+
+ifeq ($(SYSTYPE),SuperMUC-NG)
+CC      	=  gcc
+OPTIMIZE	= -Ofast -g
+GSL_INCL = $(GSL_INC)
+GSL_LIBS = $(GSL_SHLIB)
+endif
 
 ifeq ($(SYSTYPE),DARWIN)
 CC      	=  icc
@@ -75,7 +86,7 @@ INCLFILES += Makefile
 
 CFLAGS 	= -std=c99 -fopenmp $(OPTIMIZE) $(OPT) $(GSL_INCL) $(FFTW_INCL)
 
-LINK	= $(GSL_LIBS) -lm -lgsl -lgslcblas 
+LINK	= $(GSL_LIBS) $(FFTW_INCL) -lm -lgsl -lgslcblas 
 
 ## RULES ## 
 

@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "tree.h"
+//#include "magnetic_field_turb.h"
 
 #define BMAX 18e-6
 #define KLOWCUT (2*pi / Param.Boxsize * 32)
@@ -9,6 +10,7 @@
 static void set_magnetic_vector_potential();
 static void normalise_magnetic_field();
 
+
 void Make_magnetic_field()
 {
     printf("Magnetic field: \n"
@@ -17,8 +19,11 @@ void Make_magnetic_field()
             ,Param.Bfld_Norm, Param.Bfld_Eta);
 
     set_magnetic_vector_potential();
-
+#ifndef TURB_B_FIELD
 	Bfld_from_rotA_SPH(); 
+#else
+	Bfld_from_turb_spectrum();
+#endif
 
  	normalise_magnetic_field();
 
@@ -65,7 +70,6 @@ static void set_magnetic_vector_potential()
 
     return ;  
 }
-
 /* Normalise BFLD inside 0.8 rc of halo 0 */
 
 static void normalise_magnetic_field() // doesnt work correctly
